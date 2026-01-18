@@ -1,7 +1,5 @@
-
 import { useMemo } from 'react';
-import { Character, Message } from '../../types';
-import { OutfitItem } from './index';
+import { Character, Message, OutfitItem } from '../../types';
 
 export interface NeuralProfile {
     visualState: string;

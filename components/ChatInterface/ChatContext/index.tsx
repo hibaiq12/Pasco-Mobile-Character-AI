@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Sparkles, X, Clock, Play, MapPin, AlignJustify, Save, Link2, User, Bot, Briefcase, Shirt } from 'lucide-react';
-import { OutfitItem } from '../index';
+import { OutfitItem } from '../../../types';
 import { WardrobeEditor } from './WardrobeEditor';
 import { t } from '../../../services/translationService';
 

@@ -1,12 +1,14 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Character, Message, ChatSession } from '../types';
+import { Character, Message, ChatSession, OutfitItem } from '../types';
 import { generateCharacterResponse, generateGroupResponse, generateNPCResponse } from '../services/geminiService';
 import { saveSession, getSettings, saveStorySnapshot, saveCharacter } from '../services/storageService'; 
 import { Smartphone, PhoneNotification } from './Smartphone/index';
 import { addPhoneMessage, PhoneMessage, getSmartphoneData, saveSmartphoneData, initSmartphoneData, JOBS_DATA, updateWalletBalance, claimJobSalary } from '../services/smartphoneStorage'; 
 import { Send, Image as ImageIcon, ArrowLeft, Save, RotateCw, Edit3, RefreshCw, Smartphone as SmartphoneIcon, PanelRight, X, Clock, MapPin, AlignJustify, Play, Zap, Check, Brain, Activity, Sparkles, RotateCcw, AlertTriangle, Cpu, Terminal, CheckCircle, Power, Briefcase, FastForward } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+// Added comment for fix: Pointing to the new refactored ChatContext directory's index file to avoid "not a module" error
+import { ChatContext } from './ChatInterface/ChatContext/index';
+import { RestartModal } from './ChatInterface/RestartModal';
 
 interface ChatInterfaceProps {
   participants: Character[];
@@ -74,6 +76,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   
   const [timeSkip, setTimeSkip] = useState({ d: '0', h: '0', m: '0', s: '0' });
 
+  // Missing State Definitions
+  const [userLocation, setUserLocation] = useState('');
+  const [botLocation, setBotLocation] = useState(participants[0]?.scenario?.currentLocation || '');
+  const [outfits, setOutfits] = useState<OutfitItem[]>([]);
+
   // Phone Interaction State
   const [isTimePaused, setIsTimePaused] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
@@ -130,12 +137,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       
       const activeJob = JOBS_DATA.find(job => {
           if (!phoneData.activeJobs.includes(job.id)) return false;
-          // Simple check: Is current hour >= start AND < end
-          // Handle midnight shifts (e.g., 22:00 to 06:00) logic later if needed, assume basic day shift for now
           if (job.startHour < job.endHour) {
               return currentHour >= job.startHour && currentHour < job.endHour;
           } else {
-              // Overnight shift (e.g. 22 to 04)
               return currentHour >= job.startHour || currentHour < job.endHour;
           }
       });
@@ -144,7 +148,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
           setIsWorking(true);
           setCurrentJobId(activeJob.id);
       } else {
-          // If we were working but now the hour is past, auto-complete
           if (isWorking) {
               handleWorkComplete();
           }
@@ -201,13 +204,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       if (currentJobId && activeChar) {
           const job = JOBS_DATA.find(j => j.id === currentJobId);
           if (job) {
-              // --- CRITICAL FIX: Check if already paid today ---
               const isEligibleForPay = claimJobSalary(activeChar.id, job.id, virtualTime);
-              
               let sysLog: Message;
 
               if (isEligibleForPay) {
-                  // Pay Salary
                   updateWalletBalance(activeChar.id, job.salaryDaily, `Gaji Harian: ${job.title}`, 'salary');
                   setLastPhoneUpdate(Date.now());
                   
@@ -219,7 +219,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                       isSystemEvent: true
                   };
               } else {
-                  // Just end shift without pay
                   sysLog = {
                       id: crypto.randomUUID(),
                       role: 'model',
@@ -230,8 +229,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
               }
 
               setMessages(prev => [...prev, sysLog]);
-              
-              // Trigger AI to comment
               setTimeout(() => {
                   triggerAiResponse(false, [...messages, sysLog]);
               }, 1000);
@@ -245,20 +242,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       if (currentJobId) {
           const job = JOBS_DATA.find(j => j.id === currentJobId);
           if (job) {
-              // Advance time to endHour + 1 minute
               const date = new Date(virtualTime);
               let targetHour = job.endHour;
-              
-              // Handle day crossover
-              if (targetHour < date.getHours()) {
-                  date.setDate(date.getDate() + 1);
-              }
-              
+              if (targetHour < date.getHours()) date.setDate(date.getDate() + 1);
               date.setHours(targetHour, 1, 0, 0);
               setVirtualTime(date.getTime());
-              
-              // handleWorkComplete will be triggered by effect or we can call manually
-              // Better call manually to ensure sequence
               setTimeout(() => handleWorkComplete(), 100);
           }
       }
@@ -392,7 +380,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       const newHistory = [...messages, userLogMsg];
       setMessages(prev => [...prev, userLogMsg]);
       
-      // Add to Phone Storage immediately
       const myMsg: PhoneMessage = {
           id: crypto.randomUUID(),
           senderId: 'user',
@@ -401,7 +388,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
           isMe: true
       };
       addPhoneMessage(activeChar.id, contactId, myMsg);
-      setLastPhoneUpdate(Date.now()); // Trigger Phone UI Refresh
+      setLastPhoneUpdate(Date.now()); 
 
       if (contactId === activeChar.id) {
           setIsTyping(true);
@@ -478,11 +465,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   };
 
   const handleRegenerate = async () => {
+      if (isTyping) return;
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg.role !== 'model') return;
+      if (!lastMsg || lastMsg.role !== 'model') return;
+      
+      // Update UI state first to remove the message
       const newHistory = messages.slice(0, -1);
       setMessages(newHistory);
-      await triggerAiResponse(false, newHistory);
+      
+      // Trigger new generation with delay to ensure state update settles
+      setTimeout(() => {
+          triggerAiResponse(false, newHistory);
+      }, 50);
   };
 
   const handleEditMessage = (id: string, newText: string) => {
@@ -499,7 +493,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       const h = parseInt(timeSkip.h) || 0;
       const m = parseInt(timeSkip.m) || 0;
       const s = parseInt(timeSkip.s) || 0;
-      const totalMs = ((d * 24 * 3600) + (h * 3600) + (m * 60) + s) * 1000;
+      const totalMs = ((d * 24 * 360) + (h * 3600) + (m * 60) + s) * 1000;
       
       if (totalMs > 0) {
           setVirtualTime(prev => prev + totalMs);
@@ -562,13 +556,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   };
 
   const handlePlaceOrder = (order: { name: string, price: number, arrivalTime: number }) => {
-      // 1. Deduct Wallet Immediately with the provided (final) price
       const success = updateWalletBalance(activeChar.id, -order.price, order.name, 'payment'); 
-      
       if (success) {
-          setLastPhoneUpdate(Date.now()); // Refresh phone UI
-          
-          // 2. Notification: Wallet Decreased (Immediate)
+          setLastPhoneUpdate(Date.now());
           const priceStr = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(order.price);
           setNotifications(prev => [{
               id: crypto.randomUUID(),
@@ -578,7 +568,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
               timestamp: virtualTime
           }, ...prev]);
 
-          // 3. Notification: Order Placed (1 Second Delay)
           setTimeout(() => {
               setNotifications(prev => [{
                   id: crypto.randomUUID(),
@@ -587,17 +576,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                   message: `Pesanan "${order.name}" sedang diproses.`,
                   timestamp: virtualTime + 1000
               }, ...prev]);
-              
-              // Add to Pending List for future arrival
-              setPendingOrders(prev => [...prev, { 
-                  id: crypto.randomUUID(), 
-                  itemName: order.name, 
-                  arrivalTime: order.arrivalTime 
-              }]);
-
+              setPendingOrders(prev => [...prev, { id: crypto.randomUUID(), itemName: order.name, arrivalTime: order.arrivalTime }]);
           }, 1000);
       } else {
-          // Handle insufficient funds if UI check failed (fallback)
            setNotifications(prev => [{
               id: crypto.randomUUID(),
               app: 'wallet',
@@ -608,22 +589,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       }
   };
 
-  // --- RESTART LOGIC ---
   const handleRestartConfirm = () => {
       setShowRestartModal(false);
       setIsRestarting(true);
       setRestartProgress(0);
       setIsRebootSuccess(false);
-      
-      // Animation Loop
       const interval = setInterval(() => {
           setRestartProgress(prev => {
               if (prev >= 100) {
                   clearInterval(interval);
-                  setIsRebootSuccess(true); // Trigger Success Animation State
+                  setIsRebootSuccess(true);
                   setTimeout(() => {
                       performReset();
-                  }, 2500); // Wait 2.5s for success animation to play out
+                  }, 2500);
                   return 100;
               }
               return prev + Math.floor(Math.random() * 10) + 5;
@@ -632,16 +610,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   };
 
   const performReset = () => {
-      // 1. Reset Time
       const initialTime = parseScenarioTime(activeChar);
       setVirtualTime(initialTime);
-      
-      // 2. Clear State
       setMessages([]);
       setNotifications([]);
       setPendingOrders([]);
-      
-      // 3. Clear Storage for Session
       const emptySession: ChatSession = {
           characterId: isGroup ? (initialSession.characterId || 'group') : activeChar.id,
           isGroup,
@@ -651,25 +624,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
           virtualTime: initialTime
       };
       saveSession(emptySession);
-      
-      // 4. Reset Smartphone Data (Fresh Start)
       if (!isGroup) {
           const newData = initSmartphoneData(activeChar);
           saveSmartphoneData(activeChar.id, newData);
-          setLastPhoneUpdate(Date.now()); // Force refresh smartphone
+          setLastPhoneUpdate(Date.now());
       }
-      
-      // 5. Cleanup
       setIsRebootSuccess(false);
       setIsRestarting(false);
-      
-      // 6. Trigger AI Greeting
-      setTimeout(() => {
-          triggerAiResponse(true); 
-      }, 500);
+      setTimeout(() => { triggerAiResponse(true); }, 500);
   };
 
-  // Custom Message Renderer for Clickable Settings Link
   const renderMessageContent = (text: string, isUser: boolean) => {
       if (text.includes('||SETTINGS||')) {
           const parts = text.split('||SETTINGS||');
@@ -698,7 +662,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   return (
     <div className="h-full w-full flex bg-zinc-950 relative overflow-hidden">
         
-        {/* Background Atmosphere */}
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
             <div 
                 className="absolute inset-0 bg-cover bg-center opacity-30 blur-[80px] scale-110 transition-all duration-1000"
@@ -723,9 +686,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
         />
 
         {/* LEFT SIDEBAR (Desktop Only) */}
-        {/* ... (rest of the component remains unchanged) ... */}
         <div className="hidden lg:flex w-80 flex-col border-r border-white/5 bg-zinc-950/60 backdrop-blur-xl z-10 p-6 relative shadow-2xl">
-            {/* ... Content identical to previous turn ... */}
             <div className="flex-1 overflow-y-auto no-scrollbar space-y-6">
                 <div className="relative group rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black/40">
                     <div className="aspect-[3/4] relative">
@@ -752,24 +713,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                             </div>
                             <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                                 <div className="h-full bg-gradient-to-r from-violet-600 to-violet-400 w-[60%] shadow-[0_0_10px_#8b5cf6]"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-[10px] font-bold text-zinc-400 mb-1.5 uppercase">
-                                <span>Social Core</span>
-                                <span className="text-blue-400">{activeChar.socialProfile.socialBattery || 'Stable'}</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 w-[80%] shadow-[0_0_10px_#3b82f6]"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-[10px] font-bold text-zinc-400 mb-1.5 uppercase">
-                                <span>Stability</span>
-                                <span className="text-emerald-400">{activeChar.emotionalProfile.stability || 'Stable'}</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-emerald-600 to-green-400 w-[90%] shadow-[0_0_10px_#10b981]"></div>
                             </div>
                         </div>
                     </div>
@@ -807,7 +750,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {/* RESTART BUTTON */}
                     <button onClick={() => setShowRestartModal(true)} className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" title="Restart Simulation">
                         <RotateCcw size={20} />
                     </button>
@@ -820,7 +762,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                 </div>
             </div>
 
-            {/* Working Overlay - MOVED HERE to cover Chat Body and Input */}
+            {/* Working Overlay */}
             {isWorking && (
                 <div className="absolute top-16 left-0 right-0 bottom-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center text-center animate-fade-in p-6 border-t border-white/5">
                     <Briefcase size={48} className="text-blue-500 mb-4 animate-bounce" />
@@ -828,7 +770,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                     <div className="text-4xl font-mono text-blue-400 mb-6">{formattedTime}</div>
                     
                     <p className="text-sm text-zinc-400 max-w-md mb-8">
-                        Anda sedang dalam jam kerja. Chat interface dinonaktifkan sementara. Anda dapat menggunakan smartphone atau melewati waktu.
+                        Anda sedang dalam jam kerja. Chat interface dinonaktifkan sementara.
                     </p>
 
                     <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
@@ -853,7 +795,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
 
             {/* Chat Body */}
             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar scroll-smooth relative">
-                {/* ... existing message rendering ... */}
                 <div className="max-w-3xl mx-auto w-full pb-4 space-y-6">
                      {messages.map((msg, idx) => {
                          const isUser = msg.role === 'user';
@@ -898,7 +839,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                                                  {isUser ? (
                                                      <button onClick={() => setEditingMessageId(msg.id)} className="p-1.5 bg-blue-600 text-white rounded-lg shadow hover:scale-110 transition-transform"><Edit3 size={12} /></button>
                                                  ) : (
-                                                     <button onClick={handleRegenerate} className="p-1.5 bg-white text-black rounded-lg shadow hover:scale-110 transition-transform"><RefreshCw size={12} /></button>
+                                                     <button 
+                                                        onClick={handleRegenerate} 
+                                                        disabled={isTyping}
+                                                        className={`p-1.5 bg-white text-black rounded-lg shadow hover:scale-110 transition-transform ${isTyping ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                     >
+                                                         <RefreshCw size={12} />
+                                                     </button>
                                                  )}
                                              </div>
 
@@ -914,7 +861,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                                                      <div className="text-[10px] text-zinc-400">Press Enter to Save</div>
                                                  </div>
                                              ) : (
-                                                 // UPDATED: Use custom renderer
                                                  renderMessageContent(msg.text, isUser)
                                              )}
                                              
@@ -940,6 +886,59 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                          </div>
                      )}
             </div>
+
+            {/* Input Area */}
+            <div className="p-4 md:p-6 z-20 shrink-0">
+                <div className="max-w-3xl mx-auto relative bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 focus-within:border-zinc-700 rounded-[1.5rem] p-2 pl-2 flex items-end shadow-2xl transition-colors duration-300">
+                    <div className="flex gap-1 mb-1.5 ml-1 text-zinc-400">
+                         <button 
+                            onClick={() => fileInputRef.current?.click()} 
+                            className="p-2 hover:bg-zinc-800 hover:text-zinc-200 rounded-full transition-colors relative group"
+                         >
+                            <ImageIcon size={20} />
+                         </button>
+                         <button onClick={() => setShowPhone(!showPhone)} className="p-2 hover:bg-zinc-800 hover:text-zinc-200 rounded-full transition-colors hidden sm:block">
+                            <SmartphoneIcon size={20} />
+                         </button>
+                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                    </div>
+
+                    <textarea 
+                        ref={textareaRef}
+                        value={inputText} 
+                        onChange={(e) => setInputText(e.target.value)} 
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} 
+                        placeholder={isWorking ? "Sedang Bekerja..." : `Message ${activeChar.name}...`}
+                        className="flex-1 bg-transparent text-zinc-200 placeholder-zinc-600 text-sm max-h-32 min-h-[48px] py-3.5 px-3 outline-none resize-none custom-scrollbar leading-relaxed" 
+                        rows={1}
+                        autoFocus
+                    />
+
+                    <button 
+                        onClick={() => handleSendMessage()} 
+                        disabled={!inputText.trim() && !selectedImage || isTyping} 
+                        className={`
+                            m-1.5 p-3 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center
+                            ${(!inputText.trim() && !selectedImage) 
+                                ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' 
+                                : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:shadow-violet-500/25 transform active:scale-95'
+                            }
+                        `}
+                    >
+                        {isTyping ? <RotateCw size={18} className="animate-spin"/> : <Send size={18} className={inputText.trim() ? "translate-x-0.5" : ""} />}
+                    </button>
+                </div>
+            </div>
         </div>
-    );
+
+        <ChatContext show={showRightPanel} onClose={() => setShowRightPanel(false)} timeSkip={timeSkip} setTimeSkip={setTimeSkip}
+            onApplyTimeSkip={applyTimeSkip} userLocation={userLocation} setUserLocation={setUserLocation} botLocation={botLocation}
+            setBotLocation={setBotLocation} onSyncLocation={() => setUserLocation(botLocation)} characterName={activeChar?.name || 'Bot'}
+            currentLocation={currentLocation} setCurrentLocation={setCurrentLocation} responseLength={responseLength}
+            setResponseLength={setResponseLength} onManualSave={handleManualSave} outfits={outfits} setOutfits={setOutfits} />
+        
+        <RestartModal show={showRestartModal} isRestarting={isRestarting} isRebootSuccess={isRebootSuccess} restartProgress={restartProgress}
+            onConfirm={handleRestartConfirm} onCancel={() => setShowRestartModal(false)} />
+    </div>
+  );
 };

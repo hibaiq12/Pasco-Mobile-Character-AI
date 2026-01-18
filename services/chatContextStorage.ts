@@ -1,5 +1,4 @@
-
-import { OutfitItem } from "../components/ChatInterface/index";
+import { OutfitItem } from "../types";
 
 export interface ChatContextData {
     userLocation: string;

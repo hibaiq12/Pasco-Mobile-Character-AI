@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Character } from '../../../types';
 import { COMPLEX_SYSTEM_TEMPLATE, DEFAULT_CHARACTER_AVATAR } from '../../../constants';
@@ -114,7 +115,7 @@ const RealismAnalysisModal = ({
     );
 
     return (
-        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`} onClick={handleClose}>
+        <div className={`fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`} onClick={handleClose}>
             <div className={`
                 w-full max-w-md bg-gradient-to-b from-white to-blue-50 border border-blue-200 rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[85vh]
                 transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1) transform
@@ -564,7 +565,7 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
                 `}>
                     
                     {showMiniForge ? (
-                        <div className="h-full ml-[1%] w-[96%] md:w-[20%] relative z-50 flex flex-col shadow-2xl overflow-hidden rounded-r-3xl md:rounded-3xl border-r border-white/10 bg-zinc-950/95 backdrop-blur-xl">
+                        <div className="h-full w-full relative z-50 flex flex-col shadow-2xl bg-zinc-950/95 backdrop-blur-xl">
                             <MiniNeuralForge onBack={() => setShowMiniForge(false)} />
                         </div>
                     ) : (

@@ -1,2 +1,4 @@
+
 // This is the primary export hub for AI Soul Logic
-export * from './RealismHumanitySouls/AISouls/index';
+// Standardizing to relative path for browser ESM support
+export * from '../SoulLogicServices/RealismHumanitySouls/AISouls/index';

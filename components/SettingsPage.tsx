@@ -97,14 +97,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
     const file = e.target.files?.[0];
     if (file) {
         setIsImporting(true);
-        const data = await importData(file);
-        setIsImporting(false);
+        try {
+            const data = await importData(file);
+            setIsImporting(false);
 
-        if (data) {
-            setPendingImport(data);
-            setShowImportTypeModal(true);
-        } else {
-            alert("Failed to read file. Please ensure it is a valid .psc or .json file.");
+            if (data) {
+                // Quick validation
+                if (!data.characters && !data.settings && !data.history) {
+                    alert("Warning: The file was read, but no recognizable data was found.");
+                } else {
+                    setPendingImport(data);
+                    setShowImportTypeModal(true);
+                }
+            } else {
+                alert("Failed to parse the save file. It might be corrupted or incompatible.");
+            }
+        } catch (error) {
+            setIsImporting(false);
+            console.error(error);
+            alert("Critical Error reading file. Please check console for details.");
         }
     }
     e.target.value = '';
@@ -113,9 +124,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
   // --- IMPORT ACTIONS ---
   const importRestoreAll = () => {
       if (!pendingImport) return;
-      restoreSystemData(pendingImport);
-      alert("Full system restore complete. Reloading...");
-      window.location.reload();
+      try {
+          restoreSystemData(pendingImport);
+          alert("Full system restore complete. Reloading...");
+          window.location.reload();
+      } catch (e) {
+          alert("Error during restoration. Partial data may have been loaded.");
+          console.error(e);
+      }
   };
 
   const importRestoreCharacters = () => {
@@ -149,7 +165,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
       let restoredCount = 0;
       selectedImportIds.forEach(id => {
           // 1. Restore Character Definition
-          const char = pendingImport.characters.find(c => c && c.id === id);
+          const char = pendingImport.characters?.find(c => c && c.id === id);
           if (char) saveCharacter(char);
 
           // 2. Restore Chat Messages (Session)
@@ -249,8 +265,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                                         onNukeClick={() => setShowNukeModal(true)}
                                         isResetting={isResetting}
                                     />
-                                    {isImporting && <div className="mt-2 text-xs text-blue-400 animate-pulse">Reading file...</div>}
-                                    <input type="file" ref={fileInputRef} onChange={handleFileRead} className="hidden" accept=".json,.psc" />
+                                    {isImporting && <div className="mt-2 text-xs text-blue-400 animate-pulse">Reading file... please wait.</div>}
+                                    <input type="file" ref={fileInputRef} onChange={handleFileRead} className="hidden" accept=".json,.psc,.zip" />
                                 </>
                             )}
                             {activeTab === 'language' && <LanguageSettings settings={settings} setSettings={setSettings} />}
@@ -432,7 +448,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                               const uniqueItems: { id: string, name: string, avatar?: string, isGroup: boolean }[] = [];
                               
                               // 1. Characters - SAFER MAPPING
-                              pendingImport.characters.forEach(c => {
+                              pendingImport.characters?.forEach(c => {
                                   if (c && c.id) {
                                       uniqueItems.push({ id: c.id, name: c.name || 'Unknown', avatar: c.avatar, isGroup: false });
                                   }

@@ -1,7 +1,6 @@
-
 import React, { useState, useRef } from 'react';
 import { Plus, Trash2, ArrowLeft, Shirt, User, Sparkles, Wand2, Image as ImageIcon, Loader2, Upload, ChevronDown, ChevronUp } from 'lucide-react';
-import { OutfitItem } from '../index'; // Importing type from parent index
+import { OutfitItem } from '../../../types';
 import { generateOutfitConfig } from '../../../services/geminiService';
 import { t } from '../../../services/translationService';
 

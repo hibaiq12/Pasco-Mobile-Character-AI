@@ -72,8 +72,6 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
   const settings = getSettings();
   
   // --- REALISM CHECK ---
-  // If character ID matches a Realism character (e.g. Hiyori), serve the RealismForge instead.
-  // Currently checking hardcoded 'char-hiyori', in future can check a property.
   const isRealismCharacter = initialData?.id === 'char-hiyori' || initialData?.id?.startsWith('realism-');
 
   if (isRealismCharacter) {
@@ -121,14 +119,12 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
     modelConfig: { modelName: settings.defaultModel || 'gemini-2.5-flash', temperature: settings.defaultTemperature || 0.7 }
   });
 
-  // Neural Thinking Score (Real-time)
   const coherenceScore = useMemo(() => calculateCoherenceScore(formData), [formData]);
   const status = getCoherenceStatus(coherenceScore);
 
-  // --- TRANSITION HANDLERS ---
   const handleExit = (callback: () => void) => {
       setIsExiting(true);
-      setTimeout(callback, 400); // Wait for exit animation
+      setTimeout(callback, 400); 
   };
 
   const handleFileSelection = (file: File) => {
@@ -321,7 +317,6 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
                     {activeSection === 'emotional' && <EmotionalConfig formData={formData} setFormData={setFormData} suggestions={SUGGESTIONS} />}
                     {activeSection === 'scenario' && <ScenarioConfig formData={formData} setFormData={setFormData} />}
                     
-                    {/* Fallback for other sections using simple inputs for now */}
                     {activeSection === 'moral' && (
                         <div className="space-y-6">
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -29,7 +29,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
             {/* Close Button */}
             <button 
                 onClick={onClose}
-                className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all z-[160] group active:scale-90"
+                className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all z-50 group"
             >
                 <X size={24} className="group-hover:scale-110 transition-transform" />
             </button>
@@ -37,7 +37,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
             <div className="w-full h-full flex flex-col relative">
                 
                 {/* Image Container */}
-                <div className="flex-1 flex items-center justify-center p-4 md:p-10 overflow-hidden relative z-10">
+                <div className="flex-1 flex items-center justify-center p-4 md:p-10 overflow-hidden relative">
                     <img 
                         src={imageUrl} 
                         alt="Generated Content" 
@@ -45,8 +45,8 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
                     />
                 </div>
 
-                {/* Controls Bar - Increased Z-Index for Mobile Touch Priority */}
-                <div className="p-6 pb-10 bg-gradient-to-t from-black via-black/90 to-transparent absolute bottom-0 left-0 right-0 flex flex-col items-center gap-4 z-[160]">
+                {/* Controls Bar */}
+                <div className="p-6 pb-10 bg-gradient-to-t from-black via-black/90 to-transparent absolute bottom-0 left-0 right-0 flex flex-col items-center gap-4">
                     
                     {/* Prompt Text Display */}
                     <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md max-w-2xl text-center">
@@ -58,7 +58,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
                         {/* Download Button (Max Res) */}
                         <button 
                             onClick={handleDownload}
-                            className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-95 touch-manipulation"
+                            className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-95"
                         >
                             <Download size={16} />
                             Download HD
@@ -67,7 +67,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
                         {/* Regenerate Button */}
                         <button 
                             onClick={() => onRegenerate(prompt)}
-                            className="flex items-center gap-2 px-6 py-3 bg-zinc-800 text-white border border-zinc-700 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-zinc-700 hover:border-zinc-500 transition-all active:scale-95 touch-manipulation"
+                            className="flex items-center gap-2 px-6 py-3 bg-zinc-800 text-white border border-zinc-700 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-zinc-700 hover:border-zinc-500 transition-all active:scale-95"
                         >
                             <RefreshCw size={16} />
                             Regenerate

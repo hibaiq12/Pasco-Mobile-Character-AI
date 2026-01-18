@@ -13,6 +13,11 @@ async function urlToBase64(url: string): Promise<{ base64: string, mimeType: str
             const reader = new FileReader();
             reader.onloadend = () => {
                 const result = reader.result as string;
+                // Ensure result is valid data URL
+                if (!result.includes(',')) {
+                    reject(new Error("Invalid base64 conversion"));
+                    return;
+                }
                 const base64 = result.split(',')[1];
                 const mimeType = result.match(/:(.*?);/)?.[1] || 'image/jpeg';
                 resolve({ base64, mimeType });
@@ -58,45 +63,13 @@ export const validateFaceInImage = async (base64Image: string): Promise<boolean>
     }
 };
 
-const sanitizePrompt = (input: string): string => {
-    let safe = input;
-    // Replace risky anatomical/NSFW terms that trigger Gemini Safety Filters
-    const replacements: Record<string, string> = {
-        "E-Cup": "Curvy",
-        "D-Cup": "Curvy",
-        "F-Cup": "Curvy",
-        "Heavy": "Soft",
-        "Chest": "Figure",
-        "Bust": "Figure",
-        "Lingerie": "Sleepwear",
-        "Underwear": "Shorts",
-        "Bra": "Top",
-        "Swimsuit": "Beachwear",
-        "Naked": "Wrapped",
-        "Nude": "Wrapped",
-        "Seductive": "Elegant",
-        "Voluptuous": "Elegant",
-        "Dominant": "Confident",
-        "Submissive": "Shy",
-        "Latex": "Shiny Fabric",
-        "Bondage": "Restrained"
-    };
-
-    Object.keys(replacements).forEach(key => {
-        const regex = new RegExp(key, 'gi');
-        safe = safe.replace(regex, replacements[key]);
-    });
-    
-    return safe;
-};
-
 /**
  * Menghasilkan gambar karakter, menyimpan ke storage khusus, dan mengembalikan Base64.
  */
 export const generateCharacterImage = async (
     prompt: string,
     referenceImage: string,
-    characterId: string 
+    characterId: string // Added to link image to character
 ): Promise<string | null> => {
     try {
         let imageData: { base64: string, mimeType: string } | null = null;
@@ -124,35 +97,32 @@ export const generateCharacterImage = async (
             });
         }
 
-        // 3. Construct Text Prompt (SANITIZED)
-        const safePrompt = sanitizePrompt(prompt);
-
+        // 3. Construct Text Prompt with Maximized Dialogue Context
         let finalPrompt = `
-        Create a high-quality anime style illustration.
+        Create a high-quality, cinematic anime style illustration (16:9 Wide Ratio).
         
-        SCENE DESCRIPTION:
-        ${safePrompt}
+        SCENE & DIALOGUE CONTEXT:
+        ${prompt}
+        
+        VISUALIZATION RULES:
+        1. Capture the exact emotion, mood, and action described in the dialogue context above.
+        2. If the dialogue suggests intimacy, anger, or sadness, reflect it vividly in the character's expression and lighting.
+        3. Make it look like a scene from a high-budget anime movie.
         `;
 
         if (imageData) {
             finalPrompt += `
-            STRICT INSTRUCTIONS:
+            STRICT CONSISTENCY:
             1. Use the provided reference image as the PRIMARY SOURCE for the character's facial features, hair style, and hair color.
             2. Maintain the anatomy and body build described or implied in the reference.
             3. Ensure the clothing matches the description provided in the prompt.
-            4. High resolution, detailed background, cinematic lighting.
             `;
-        } else {
-             finalPrompt += `
-             STYLE: High resolution, detailed anime style, cinematic lighting.
-             (Note: Generate character based on description provided in the prompt.)
-             `;
         }
 
         parts.push({ text: finalPrompt });
 
-        // 4. Call API
-        // NOTE: using 'gemini-2.5-flash-image' as per instructions for image gen
+        // 4. Call API with 16:9 Ratio and Disabled Safety Filters (Realism Mode)
+        // Using String Literals for Safety Settings as safest approach across SDK versions
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
             contents: [
@@ -161,6 +131,18 @@ export const generateCharacterImage = async (
                     parts: parts,
                 }
             ],
+            config: {
+                imageConfig: {
+                    aspectRatio: "16:9" // Enforce 16:9 Aspect Ratio
+                },
+                // Realism Mode: Disable Safety Filters to allow raw/unfiltered visuals appropriate for the chat context
+                safetySettings: [
+                    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+                ]
+            }
         });
 
         // 5. Parse Response Safely
@@ -176,10 +158,11 @@ export const generateCharacterImage = async (
                 const resultBase64 = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                 
                 // --- SAVE TO DEDICATED STORAGE ---
+                // We use dedicated storage for images to avoid clogging the main session storage.
                 saveGeneratedImage({
                     id: crypto.randomUUID(),
                     base64: resultBase64,
-                    prompt: safePrompt,
+                    prompt: prompt,
                     timestamp: Date.now(),
                     characterId: characterId
                 });
@@ -192,12 +175,12 @@ export const generateCharacterImage = async (
     } catch (error: any) {
         console.error("Image Generation Failed:", error);
         
-        // Retry logic for 400/500 errors (skip reference image as it might be the cause)
-        const shouldRetry = error.status === 400 || error.status === 500 || (error.message && (error.message.includes('400') || error.message.includes('500') || error.message.includes('INVALID_ARGUMENT')));
+        // Retry logic for 400 errors (skip reference image if it caused issues)
+        const errorMsg = error.message || JSON.stringify(error);
+        const is400 = error.status === 400 || errorMsg.includes('400') || errorMsg.includes('INVALID_ARGUMENT');
         
-        if (shouldRetry && referenceImage) {
+        if (is400 && referenceImage) {
             console.log("Retrying image generation without reference due to API error...");
-            // Retry with empty reference string
             return generateCharacterImage(prompt, '', characterId);
         }
         throw error;

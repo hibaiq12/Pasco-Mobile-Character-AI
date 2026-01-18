@@ -15,32 +15,27 @@ export const saveStorySnapshot = (character: Character, session: ChatSession, na
     let stories = getSavedStories();
     
     if (type === 'auto') {
-        // Check if an auto-save already exists for this character
         const existingAutoIndex = stories.findIndex(s => s.characterId === character.id && s.type === 'auto');
-        
         if (existingAutoIndex !== -1) {
-            // Update existing auto-save
             stories[existingAutoIndex] = {
                 ...stories[existingAutoIndex],
                 sessionData: session,
                 savedAt: Date.now(),
-                saveName: "Auto-Save", // Ensure name remains consistent
-                avatar: character.avatar // Update avatar in case it changed
+                saveName: "Auto-Save",
+                avatar: character.avatar
             };
-            // Move to top if not already
             if (existingAutoIndex > 0) {
                  const updatedStory = stories.splice(existingAutoIndex, 1)[0];
                  stories.unshift(updatedStory);
             }
         } else {
-            // Create new auto-save
             const newStory: SavedStory = {
                 id: crypto.randomUUID(),
                 characterId: character.id,
                 characterName: character.name,
                 avatar: character.avatar,
                 saveName: "Auto-Save",
-                color: '#10b981', // Emerald for Auto
+                color: '#10b981', 
                 savedAt: Date.now(),
                 sessionData: session,
                 type: 'auto'
@@ -48,14 +43,13 @@ export const saveStorySnapshot = (character: Character, session: ChatSession, na
             stories.unshift(newStory);
         }
     } else {
-        // Manual Save - Always create new
         const newStory: SavedStory = {
             id: crypto.randomUUID(),
             characterId: character.id,
             characterName: character.name,
             avatar: character.avatar,
             saveName: name,
-            color: '#7c3aed', // Default Violet
+            color: '#7c3aed', 
             savedAt: Date.now(),
             sessionData: session,
             type: 'manual'
@@ -63,19 +57,53 @@ export const saveStorySnapshot = (character: Character, session: ChatSession, na
         stories.unshift(newStory);
     }
     
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(stories));
+    // Initial Safety Limit
+    if (stories.length > 20) {
+        stories = stories.slice(0, 20);
+    }
+
+    // --- ROBUST QUOTA HANDLING ---
+    const saveWithTrim = (data: SavedStory[]) => {
+        try {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
+        } catch (e: any) {
+             if (e.name === 'QuotaExceededError' || e.code === 22) {
+                 console.warn("Storage Full. Trimming history to save new snapshot...");
+                 if (data.length > 5) {
+                     // Remove oldest story if we have more than 5
+                     // Prioritize removing MANUAL saves from the END, or oldest AUTO
+                     data.pop(); 
+                     saveWithTrim(data); // Retry recursively
+                 } else {
+                     console.error("Critical: Storage full even with minimal history. Snapshot failed.");
+                 }
+             } else {
+                 console.error("Unknown storage error", e);
+             }
+        }
+    };
+
+    saveWithTrim(stories);
 };
 
 export const updateSavedStory = (updatedStory: SavedStory) => {
-    const stories = getSavedStories();
-    const index = stories.findIndex(s => s.id === updatedStory.id);
-    if (index !== -1) {
-        stories[index] = updatedStory;
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(stories));
+    try {
+        const stories = getSavedStories();
+        const index = stories.findIndex(s => s.id === updatedStory.id);
+        if (index !== -1) {
+            stories[index] = updatedStory;
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(stories));
+        }
+    } catch (e) {
+        console.error("Failed to update story:", e);
     }
 };
 
 export const deleteSavedStory = (id: string) => {
-    const stories = getSavedStories().filter(s => s.id !== id);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(stories));
+    try {
+        const stories = getSavedStories().filter(s => s.id !== id);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(stories));
+    } catch (e) {
+        console.error("Failed to delete story:", e);
+    }
 };

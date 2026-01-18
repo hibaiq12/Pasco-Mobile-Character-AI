@@ -53,6 +53,7 @@ export const RealismUserConfigModal: React.FC<RealismUserConfigModalProps> = ({ 
     }, [birthDate]);
 
     const toggleGenre = (id: string) => {
+        if (error === "Pilih setidaknya satu genre cerita.") setError(null);
         if (selectedGenres.includes(id)) {
             setSelectedGenres(prev => prev.filter(g => g !== id));
         } else {
@@ -61,21 +62,37 @@ export const RealismUserConfigModal: React.FC<RealismUserConfigModalProps> = ({ 
     };
 
     const handleStart = () => {
-        if (error) return;
+        // 1. Validate Name
         if (!name.trim()) {
             setError("Nama panggilan diperlukan.");
             return;
         }
+
+        // 2. Validate Age (Double check)
+        const birth = new Date(birthDate);
+        const scenarioYear = 2024; 
+        let calculatedAge = scenarioYear - birth.getFullYear();
+        const m = 3 - (birth.getMonth() + 1);
+        if (m < 0 || (m === 0 && 15 < birth.getDate())) {
+            calculatedAge--;
+        }
+        if (calculatedAge < 16 || calculatedAge > 17) {
+            setError("Sinkronisasi Skenario Gagal: Usia harus 16-17 tahun.");
+            return;
+        }
+
+        // 3. Validate Genre
         if (selectedGenres.length === 0) {
             setError("Pilih setidaknya satu genre cerita.");
             return;
         }
 
+        setError(null);
         setIsClosing(true);
         setTimeout(() => {
             onStart({
                 userName: name,
-                userAge: age,
+                userAge: calculatedAge.toString(),
                 userBirthday: birthDate,
                 userGender: 'Laki-Laki',
                 genres: selectedGenres
@@ -128,7 +145,10 @@ export const RealismUserConfigModal: React.FC<RealismUserConfigModalProps> = ({ 
                             <input 
                                 type="text" 
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e) => {
+                                    setName(e.target.value);
+                                    if (error === "Nama panggilan diperlukan.") setError(null);
+                                }}
                                 placeholder="Masukkan nama..."
                                 className="w-full bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl px-5 py-4 text-slate-700 font-bold focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-100/50 outline-none transition-all shadow-sm placeholder-slate-300 text-sm"
                             />

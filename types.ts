@@ -1,4 +1,3 @@
-
 export interface Character {
   id: string;
   name: string;
@@ -166,6 +165,11 @@ export interface AppSettings {
   maxOutputTokens: number;
   enablePreviewMode: boolean; // Developer setting to disable AI
   
+  // NEW: Maintenance Mode Developer Flags
+  devForceMaintenance?: boolean;
+  devForceUpdate?: boolean;
+  devForceCountdown?: boolean;
+  
   // NEW: Language Settings
   appLanguage: string; // Controls UI text generation and system messages (e.g. 'en', 'id')
   chatLanguage: string; // Controls the character's speaking language
@@ -191,4 +195,12 @@ export interface StoryConfiguration {
     userBirthday: string;
     userGender: string;
     genres: string[];
+}
+
+// Visual Wardrobe
+export interface OutfitItem {
+    id: string;
+    target: 'user' | 'char';
+    part: string;
+    desc: string;
 }

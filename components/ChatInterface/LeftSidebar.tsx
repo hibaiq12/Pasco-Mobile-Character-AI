@@ -1,8 +1,6 @@
-
 import React from 'react';
-import { Character, Message } from '../../types';
+import { Character, Message, OutfitItem } from '../../types';
 import { Activity, Brain, Eye, Zap, Fingerprint, Layers, Shield, Hash, BarChart3, X } from 'lucide-react';
-import { OutfitItem } from './index';
 import { useProfileEngine } from './ProfileEngine';
 
 interface LeftSidebarProps {

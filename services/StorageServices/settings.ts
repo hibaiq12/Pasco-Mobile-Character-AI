@@ -1,4 +1,3 @@
-
 import { AppSettings } from "../../types";
 import { SETTINGS_KEY, VERSION_KEY } from "./constants";
 
@@ -12,6 +11,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   tokenMode: 'auto',
   maxOutputTokens: 4096,
   enablePreviewMode: false,
+  devForceMaintenance: false,
+  devForceUpdate: false,
+  devForceCountdown: false,
   appLanguage: 'id',
   chatLanguage: 'id',
 };
