@@ -21,7 +21,8 @@ import { VoiceConfig } from './VoiceConfig';
 import { PsycheConfig } from './PsycheConfig';
 import { EmotionalConfig } from './EmotionalConfig';
 import { ScenarioConfig } from './ScenarioConfig';
-import { MiniNeuralForge } from './MiniNeuralForge'; 
+// IMPORT FIXED TO NEW LOCATION
+import { MiniNeuralForge } from './MiniNeuralForge/UI'; 
 
 // --- EXTERNAL UTILS ---
 import { calculateCoherenceScore } from '../ExternalConfiguration';
@@ -409,7 +410,7 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
         {/* MOBILE HEADER */}
         <div className="md:hidden h-14 px-4 border-b border-white/10 flex items-center justify-between bg-zinc-950/90 backdrop-blur-lg z-50 sticky top-0 shrink-0 shadow-lg shadow-black/20">
              <div className="flex items-center gap-3">
-                 <button onClick={() => handleExit(onCancel)} className="p-2 -ml-2 text-zinc-400 hover:text-white">
+                 <button onClick={() => handleExit(onCancel)} className="p-2 -ml-1 text-zinc-400 hover:text-white">
                      <ChevronLeft size={20} />
                  </button>
                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
@@ -439,58 +440,58 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
         {/* CONTENT */}
         <div className="flex-1 flex overflow-hidden relative z-10 flex-row">
             
-            {/* SIDEBAR (HIYORI THEME: White/Blue + Flower) */}
-            <div className={`
-                flex flex-shrink-0 flex-col transition-all duration-300 ease-in-out z-20 relative overflow-hidden
-                ${isSidebarCollapsed ? 'w-[50px] md:w-[60px] items-center' : 'w-64'}
-                bg-gradient-to-b from-white via-blue-50 to-blue-100 border-r border-blue-200/50
-            `}>
-                {/* Decorative Flower Background */}
-                <div className="absolute -top-10 -right-10 text-blue-200/40 pointer-events-none animate-[spin_60s_linear_infinite]">
-                    <Flower size={200} strokeWidth={0.5} />
-                </div>
-                <div className="absolute bottom-10 -left-10 text-blue-300/20 pointer-events-none">
-                    <Flower size={150} strokeWidth={0.5} />
-                </div>
+            {/* SIDEBAR (HIYORI THEME: White/Blue + Flower) - HIDDEN WHEN MINI FORGE ACTIVE */}
+            {!showMiniForge && (
+                <div className={`
+                    flex flex-shrink-0 flex-col transition-all duration-300 ease-in-out z-20 relative overflow-hidden
+                    ${isSidebarCollapsed ? 'w-[50px] md:w-[60px] items-center' : 'w-64'}
+                    bg-gradient-to-b from-white via-blue-50 to-blue-100 border-r border-blue-200/50
+                `}>
+                    {/* Decorative Flower Background */}
+                    <div className="absolute -top-10 -right-10 text-blue-200/40 pointer-events-none animate-[spin_60s_linear_infinite]">
+                        <Flower size={200} strokeWidth={0.5} />
+                    </div>
+                    <div className="absolute bottom-10 -left-10 text-blue-300/20 pointer-events-none">
+                        <Flower size={150} strokeWidth={0.5} />
+                    </div>
 
-                {/* Desktop Toggle Header */}
-                <div className={`hidden md:flex items-center p-3 border-b border-blue-200/30 relative z-10 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-                    {!isSidebarCollapsed && <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-2">Protocols</span>}
-                    <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-100 transition-colors">
-                        {isSidebarCollapsed ? <PanelLeftOpen size={16}/> : <PanelLeftClose size={16}/>}
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-1 md:p-2 space-y-2 w-full pt-4 md:pt-2 relative z-10">
-                    
-                    {!showMiniForge && MODULES.map(mod => (
-                        <button 
-                            key={mod.id} 
-                            onClick={() => setActiveSection(mod.id as any)}
-                            title={isSidebarCollapsed ? t(mod.labelKey) : ''}
-                            className={`
-                                flex items-center rounded-lg transition-all duration-200 group relative border
-                                ${isSidebarCollapsed ? 'justify-center p-2 w-10 h-10' : 'w-full p-2 gap-3 text-left'}
-                                ${activeSection === mod.id 
-                                    ? 'bg-blue-100/80 border-blue-200 text-blue-600 shadow-sm' 
-                                    : 'text-slate-500 hover:text-blue-500 hover:bg-white/60 border-transparent'}
-                            `}
-                        >
-                            <div className={`transition-colors ${activeSection === mod.id ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-400'}`}>
-                                {React.cloneElement(mod.icon as any, { size: 18 })}
-                            </div>
-                            {!isSidebarCollapsed && <span className="text-[11px] font-bold uppercase tracking-widest flex-1 truncate font-sans">{t(mod.labelKey)}</span>}
-                            
-                            {!isSidebarCollapsed && activeSection === mod.id && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />}
+                    {/* Desktop Toggle Header */}
+                    <div className={`hidden md:flex items-center p-3 border-b border-blue-200/30 relative z-10 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+                        {!isSidebarCollapsed && <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-2">Protocols</span>}
+                        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-blue-100 transition-colors">
+                            {isSidebarCollapsed ? <PanelLeftOpen size={16}/> : <PanelLeftClose size={16}/>}
                         </button>
-                    ))}
-                </div>
-                
-                {/* BOTTOM SIDEBAR ACTIONS */}
-                <div className="p-2 border-t border-blue-200/30 bg-white/40 backdrop-blur-sm relative z-10 space-y-1 flex flex-col">
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-1 md:p-2 space-y-2 w-full pt-4 md:pt-2 relative z-10">
+                        
+                        {MODULES.map(mod => (
+                            <button 
+                                key={mod.id} 
+                                onClick={() => setActiveSection(mod.id as any)}
+                                title={isSidebarCollapsed ? t(mod.labelKey) : ''}
+                                className={`
+                                    flex items-center rounded-lg transition-all duration-200 group relative border
+                                    ${isSidebarCollapsed ? 'justify-center p-2 w-10 h-10' : 'w-full p-2 gap-3 text-left'}
+                                    ${activeSection === mod.id 
+                                        ? 'bg-blue-100/80 border-blue-200 text-blue-600 shadow-sm' 
+                                        : 'text-slate-500 hover:text-blue-500 hover:bg-white/60 border-transparent'}
+                                `}
+                            >
+                                <div className={`transition-colors ${activeSection === mod.id ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-400'}`}>
+                                    {React.cloneElement(mod.icon as any, { size: 18 })}
+                                </div>
+                                {!isSidebarCollapsed && <span className="text-[11px] font-bold uppercase tracking-widest flex-1 truncate font-sans">{t(mod.labelKey)}</span>}
+                                
+                                {!isSidebarCollapsed && activeSection === mod.id && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />}
+                            </button>
+                        ))}
+                    </div>
                     
-                    {/* MINI FORGE TOGGLE (Moved Here) */}
-                    {!showMiniForge && (
+                    {/* BOTTOM SIDEBAR ACTIONS */}
+                    <div className="p-2 border-t border-blue-200/30 bg-white/40 backdrop-blur-sm relative z-10 space-y-1 flex flex-col">
+                        
+                        {/* MINI FORGE TOGGLE (Moved Here) */}
                         <button 
                             onClick={() => setShowMiniForge(true)}
                             className={`
@@ -510,10 +511,8 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
                                 </div>
                             )}
                         </button>
-                    )}
 
-                    {/* COHERENCE METER - HIDDEN WHEN MINI FORGE IS ACTIVE */}
-                    {!showMiniForge && (
+                        {/* COHERENCE METER */}
                         <div 
                             onClick={() => setShowAnalysis(true)}
                             className={`
@@ -538,9 +537,9 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
                                 <span className="text-[8px] font-mono font-bold text-blue-600 mt-0.5">{Math.round(coherenceScore)}%</span>
                             )}
                         </div>
-                    )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* MAIN PANEL (CONFIGURATIONS) */}
             <div 
