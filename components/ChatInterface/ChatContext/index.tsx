@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Sparkles, X, Clock, Play, MapPin, AlignJustify, Save, Link2, User, Bot, Briefcase, Shirt } from 'lucide-react';
+
+import React, { useState, useMemo } from 'react';
+import { Sparkles, X, Clock, Play, MapPin, AlignJustify, Save, Link2, User, Bot, Briefcase, Shirt, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
 import { OutfitItem } from '../../../types';
 import { WardrobeEditor } from './WardrobeEditor';
 import { t } from '../../../services/translationService';
@@ -25,6 +26,27 @@ interface ChatContextProps {
     setOutfits?: (items: OutfitItem[]) => void;
 }
 
+const VERBOSITY_LEVELS = [
+    { 
+        id: 'concise', 
+        label: 'Concise', 
+        icon: Minimize2,
+        desc: 'Direct, 1-2 sentences. Best for fast-paced chat.' 
+    },
+    { 
+        id: 'short', // Mapping "Normal" to 'short' API value
+        label: 'Normal', 
+        icon: MessageSquare,
+        desc: 'Balanced & conversational. The standard mode.' 
+    },
+    { 
+        id: 'long', 
+        label: 'Detailed', 
+        icon: Maximize2,
+        desc: 'Descriptive, inner monologues, immersive roleplay.' 
+    },
+];
+
 export const ChatContext: React.FC<ChatContextProps> = ({
     show, onClose,
     timeSkip, setTimeSkip, onApplyTimeSkip,
@@ -44,6 +66,19 @@ export const ChatContext: React.FC<ChatContextProps> = ({
     const handleTimeChange = (field: string, value: string) => {
         if (!/^\d*$/.test(value)) return;
         setTimeSkip({ ...timeSkip, [field]: value });
+    };
+
+    // Calculate current slider index (0, 1, 2)
+    // Fallback: If data is 'medium' or invalid, default to 1 (Short/Normal)
+    const currentVerbosityIndex = useMemo(() => {
+        const idx = VERBOSITY_LEVELS.findIndex(v => v.id === responseLength);
+        return idx === -1 ? 1 : idx;
+    }, [responseLength]);
+
+    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newIndex = parseInt(e.target.value);
+        const newMode = VERBOSITY_LEVELS[newIndex].id as 'concise' | 'short' | 'long';
+        setResponseLength(newMode);
     };
 
     return (
@@ -141,14 +176,69 @@ export const ChatContext: React.FC<ChatContextProps> = ({
                             </button>
                         </div>
 
+                        {/* RESPONSE VERBOSITY (Refined Slider) */}
                         <div>
-                            <h4 className="text-[10px] font-bold text-zinc-500 uppercase mb-3 flex items-center gap-2"><AlignJustify size={12}/> {t('ctx.verbosity')}</h4>
-                            <div className="flex flex-col gap-2">
-                                {[{ id: 'concise', label: 'Concise' }, { id: 'short', label: 'Short' }, { id: 'long', label: 'Long' }].map(opt => (
-                                    <button key={opt.id} onClick={() => setResponseLength(opt.id as any)} className={`text-left p-3 rounded-xl border transition-all ${responseLength === opt.id ? 'bg-violet-600/20 border-violet-500 text-violet-200' : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:bg-zinc-900'}`}>
-                                        <div className="text-xs font-bold">{opt.label}</div>
-                                    </button>
-                                ))}
+                            <h4 className="text-[10px] font-bold text-zinc-500 uppercase mb-4 flex items-center gap-2">
+                                <AlignJustify size={12}/> Response Verbosity
+                            </h4>
+                            
+                            <div className="px-1">
+                                <div className="relative h-10 flex items-center select-none">
+                                    {/* Track */}
+                                    <div className="absolute w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-gradient-to-r from-violet-600 to-indigo-400 transition-all duration-300 ease-out" 
+                                            style={{ width: `${currentVerbosityIndex * 50}%` }}
+                                        />
+                                    </div>
+                                    
+                                    {/* Markers */}
+                                    <div className="absolute inset-0 flex justify-between items-center px-0.5 pointer-events-none">
+                                        {[0, 1, 2].map((idx) => (
+                                            <div 
+                                                key={idx}
+                                                className={`
+                                                    w-4 h-4 rounded-full border-2 transition-all duration-300 z-10
+                                                    ${idx <= currentVerbosityIndex ? 'bg-zinc-950 border-violet-500' : 'bg-zinc-900 border-zinc-700'}
+                                                    ${idx === currentVerbosityIndex ? 'scale-125 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : ''}
+                                                `}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    {/* Input */}
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="2" 
+                                        step="1"
+                                        value={currentVerbosityIndex}
+                                        onChange={handleSliderChange}
+                                        className="absolute w-full h-full opacity-0 cursor-pointer z-20"
+                                    />
+                                </div>
+
+                                {/* Labels & Icon */}
+                                <div className="flex justify-between mt-1 text-[10px] font-bold uppercase text-zinc-500 mb-4">
+                                    <span className={currentVerbosityIndex === 0 ? "text-violet-400" : ""}>Concise</span>
+                                    <span className={currentVerbosityIndex === 1 ? "text-violet-400" : ""}>Normal</span>
+                                    <span className={currentVerbosityIndex === 2 ? "text-violet-400" : ""}>Detailed</span>
+                                </div>
+
+                                {/* Dynamic Description Box */}
+                                <div className="bg-zinc-900/80 p-3 rounded-xl border border-white/5 animate-fade-in flex gap-3 items-center min-h-[60px]">
+                                    <div className="p-2 bg-violet-500/10 rounded-lg text-violet-400 shrink-0">
+                                        {React.createElement(VERBOSITY_LEVELS[currentVerbosityIndex].icon, { size: 16 })}
+                                    </div>
+                                    <div className="flex-1">
+                                        <span className="block text-[10px] font-bold text-violet-300 uppercase mb-0.5">
+                                            {VERBOSITY_LEVELS[currentVerbosityIndex].label} Mode
+                                        </span>
+                                        <p className="text-[10px] text-zinc-400 leading-tight">
+                                            {VERBOSITY_LEVELS[currentVerbosityIndex].desc}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

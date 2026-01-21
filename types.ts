@@ -1,3 +1,4 @@
+
 export interface Character {
   id: string;
   name: string;
@@ -161,6 +162,7 @@ export interface AppSettings {
   enableHaptic: boolean;
   koboldUrl: string;
   openRouterKey: string;
+  openRouterModel: string; // Added OpenRouter Model
   tokenMode: 'auto' | 'manual';
   maxOutputTokens: number;
   enablePreviewMode: boolean; // Developer setting to disable AI

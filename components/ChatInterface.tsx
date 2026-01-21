@@ -1,3 +1,5 @@
+
+// ... (imports remain the same)
 import React, { useState, useEffect, useRef } from 'react';
 import { Character, Message, ChatSession, OutfitItem } from '../types';
 import { generateCharacterResponse, generateGroupResponse, generateNPCResponse } from '../services/geminiService';
@@ -631,7 +633,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       }
       setIsRebootSuccess(false);
       setIsRestarting(false);
-      setTimeout(() => { triggerAiResponse(true); }, 500);
+      // FIXED: Pass empty array to ensure it doesn't use stale state
+      setTimeout(() => { triggerAiResponse(true, []); }, 500);
   };
 
   const renderMessageContent = (text: string, isUser: boolean) => {

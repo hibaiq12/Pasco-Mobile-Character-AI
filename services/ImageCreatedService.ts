@@ -21,14 +21,26 @@ export const getGeneratedImages = (): GeneratedImage[] => {
 export const saveGeneratedImage = (image: GeneratedImage) => {
     try {
         const images = getGeneratedImages();
-        // Limit storage to last 50 images to prevent localStorage overflow
-        if (images.length >= 50) {
+        // Limit storage to last 20 images (reduced from 50) to prevent localStorage overflow
+        if (images.length >= 20) {
             images.pop(); // Remove oldest
         }
         images.unshift(image);
         localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(images));
     } catch (e) {
         console.error("Failed to save generated image", e);
+        // If quota exceeded here, we might want to clear more images
+        if ((e as any).name === 'QuotaExceededError') {
+             try {
+                 // Aggressive clear: keep only last 5
+                 const images = getGeneratedImages();
+                 const reduced = images.slice(0, 5);
+                 reduced.unshift(image);
+                 localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(reduced));
+             } catch (err) {
+                 console.error("Critical: Cannot save image even after reduction.");
+             }
+        }
     }
 };
 

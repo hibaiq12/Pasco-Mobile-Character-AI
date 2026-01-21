@@ -1,3 +1,4 @@
+
 import { AppSettings } from "../../types";
 import { SETTINGS_KEY, VERSION_KEY } from "./constants";
 
@@ -8,9 +9,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   enableHaptic: true,
   koboldUrl: 'http://localhost:5000/api',
   openRouterKey: '',
+  openRouterModel: '', // Initialize new setting
   tokenMode: 'auto',
   maxOutputTokens: 4096,
-  enablePreviewMode: false,
+  enablePreviewMode: true,
   devForceMaintenance: false,
   devForceUpdate: false,
   devForceCountdown: false,

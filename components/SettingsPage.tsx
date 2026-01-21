@@ -2,10 +2,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getSettings, saveSettings, clearAllData, exportData, importData, saveCharacter, saveSession, getSavedStories, restoreSystemData } from '../services/storageService';
 import { saveSmartphoneData } from '../services/smartphoneStorage';
-import { saveSocialData } from '../services/SmartphoneSocial';
-import { saveChatContext } from '../services/chatContextStorage';
 import { AppSettings, Character, ChatSession, SavedStory } from '../types';
-import { User, Cpu, Database, AlertTriangle, Save, Check, Trash2, Globe, HardDrive, MessageSquare, Archive, FileJson, Users, X, Terminal, CheckCircle, XCircle } from 'lucide-react';
+import { User, Cpu, Database, AlertTriangle, Save, Check, Trash2, Globe, HardDrive, MessageSquare, Archive, FileJson, Users, X, Terminal, CheckCircle, XCircle, LayoutGrid } from 'lucide-react';
 import { t } from '../services/translationService';
 
 // Sub Components
@@ -25,9 +23,6 @@ interface PendingImportData {
     history: SavedStory[];
     settings?: AppSettings;
     smartphone?: Record<string, any>;
-    social?: Record<string, any>;
-    chatContext?: Record<string, any>; 
-    weather?: any;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) => {
@@ -97,25 +92,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
     const file = e.target.files?.[0];
     if (file) {
         setIsImporting(true);
-        try {
-            const data = await importData(file);
-            setIsImporting(false);
+        const data = await importData(file);
+        setIsImporting(false);
 
-            if (data) {
-                // Quick validation
-                if (!data.characters && !data.settings && !data.history) {
-                    alert("Warning: The file was read, but no recognizable data was found.");
-                } else {
-                    setPendingImport(data);
-                    setShowImportTypeModal(true);
-                }
-            } else {
-                alert("Failed to parse the save file. It might be corrupted or incompatible.");
-            }
-        } catch (error) {
-            setIsImporting(false);
-            console.error(error);
-            alert("Critical Error reading file. Please check console for details.");
+        if (data) {
+            setPendingImport(data);
+            setShowImportTypeModal(true);
+        } else {
+            alert("Failed to read file. Please ensure it is a valid .psc or .json file.");
         }
     }
     e.target.value = '';
@@ -124,14 +108,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
   // --- IMPORT ACTIONS ---
   const importRestoreAll = () => {
       if (!pendingImport) return;
-      try {
-          restoreSystemData(pendingImport);
-          alert("Full system restore complete. Reloading...");
-          window.location.reload();
-      } catch (e) {
-          alert("Error during restoration. Partial data may have been loaded.");
-          console.error(e);
-      }
+      restoreSystemData(pendingImport);
+      alert("Full system restore complete. Reloading...");
+      window.location.reload();
   };
 
   const importRestoreCharacters = () => {
@@ -164,18 +143,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
       if (!pendingImport || selectedImportIds.length === 0) return;
       let restoredCount = 0;
       selectedImportIds.forEach(id => {
-          // 1. Restore Character Definition
-          const char = pendingImport.characters?.find(c => c && c.id === id);
+          const char = pendingImport.characters.find(c => c && c.id === id);
           if (char) saveCharacter(char);
 
-          // 2. Restore Chat Messages (Session)
           const session = pendingImport.sessions ? pendingImport.sessions[id] : null;
           if (session) {
               saveSession(session);
               restoredCount++;
           }
 
-          // 3. Restore History/Stories
           const stories = pendingImport.history?.filter(h => h.characterId === id) || [];
           stories.forEach(story => {
               const localStories = getSavedStories();
@@ -185,23 +161,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
               localStorage.setItem('pasco_saved_stories', JSON.stringify(localStories));
           });
 
-          // 4. Restore Smartphone Data
           if (pendingImport.smartphone && pendingImport.smartphone[id]) {
               saveSmartphoneData(id, pendingImport.smartphone[id]);
           }
-
-          // 5. Restore Social Data
-          if (pendingImport.social && pendingImport.social[id]) {
-              saveSocialData(id, pendingImport.social[id]);
-          }
-
-          // 6. Restore Chat Context (Location, Wardrobe, Verbosity)
-          if (pendingImport.chatContext && pendingImport.chatContext[id]) {
-              saveChatContext(id, pendingImport.chatContext[id]);
-          }
       });
-      
-      alert(`Restored ${restoredCount} chat sessions, phone data, and context contexts.`);
+      alert(`Restored ${restoredCount} chat sessions and associated data.`);
       setShowChatSelectModal(false);
       setPendingImport(null);
       window.location.reload();
@@ -211,48 +175,57 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
       <button 
         onClick={() => setActiveTab(id)}
         className={`
-            relative w-full flex items-center space-x-3 px-5 py-4 rounded-xl transition-all duration-300 group overflow-hidden
-            ${activeTab === id ? 'bg-violet-600/10 text-violet-200 border border-violet-500/20' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200 border border-transparent'}
+            w-full flex items-center space-x-3 px-5 py-4 rounded-xl transition-all duration-300 group
+            ${activeTab === id 
+                ? 'bg-violet-900/30 text-white border border-violet-500/30 shadow-[0_0_20px_rgba(124,58,237,0.1)] relative overflow-hidden' 
+                : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200 border border-transparent'}
         `}
       >
+        {/* Active Glow Effect */}
+        {activeTab === id && (
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500 shadow-[0_0_10px_#8b5cf6]"></div>
+        )}
+        
         <div className={`relative z-10 ${activeTab === id ? 'text-violet-400' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
             {icon}
         </div>
-        <span className="font-medium tracking-wide relative z-10">{label}</span>
-        {activeTab === id && <div className="absolute inset-0 bg-violet-500/5 blur-md"></div>}
+        <span className="font-medium tracking-wide relative z-10 text-sm">{label}</span>
       </button>
   );
 
   return (
-    <div className="h-full w-full bg-zinc-950 relative overflow-hidden">
+    <div className="h-full w-full bg-zinc-950 relative overflow-hidden flex flex-col">
         {/* Background Ambience */}
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-violet-900/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-violet-900/5 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-900/5 rounded-full blur-[150px] pointer-events-none" />
 
-        <div className="h-full overflow-y-auto relative z-10 p-6 sm:p-12">
-            <div className="max-w-5xl mx-auto">
+        <div className="flex-1 overflow-y-auto relative z-10 p-6 sm:p-12 custom-scrollbar">
+            <div className="max-w-6xl mx-auto">
                 
-                <div className="mb-12">
-                    <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">{t('set.title')}</h1>
-                    <p className="text-zinc-500 text-lg font-light">{t('set.desc')}</p>
+                {/* HEADER SECTION */}
+                <div className="mb-10">
+                    <h1 className="text-4xl font-black text-white mb-2 tracking-tight">{t('set.title')}</h1>
+                    <p className="text-zinc-500 text-sm">{t('set.desc')}</p>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-10 pb-20">
+                <div className="flex flex-col lg:flex-row gap-12">
                     
-                    {/* Sidebar Navigation */}
-                    <div className="w-full lg:w-72 flex-shrink-0 space-y-3">
-                        <TabButton id="profile" icon={<User size={20}/>} label={t('set.nav.profile')} />
-                        <TabButton id="ai" icon={<Cpu size={20}/>} label={t('set.nav.ai')} />
-                        <TabButton id="data" icon={<Database size={20}/>} label={t('set.nav.data')} />
-                        <TabButton id="language" icon={<Globe size={20}/>} label={t('set.nav.language')} />
-                        <TabButton id="dev" icon={<Terminal size={20}/>} label={t('set.nav.dev')} />
+                    {/* SIDEBAR NAVIGATION */}
+                    <div className="w-full lg:w-64 flex-shrink-0 flex flex-col gap-2">
+                        <TabButton id="profile" icon={<User size={18}/>} label={t('set.nav.profile')} />
+                        <TabButton id="ai" icon={<Cpu size={18}/>} label={t('set.nav.ai')} />
+                        <TabButton id="data" icon={<Database size={18}/>} label={t('set.nav.data')} />
+                        <TabButton id="language" icon={<Globe size={18}/>} label={t('set.nav.language')} />
+                        
+                        <div className="h-4"></div> {/* Spacer */}
+                        
+                        <TabButton id="dev" icon={<Terminal size={18}/>} label={t('set.nav.dev')} />
                     </div>
 
-                    {/* Main Content Panel */}
-                    <div className="flex-1 flex flex-col">
-                        <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl p-8 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
-                            {/* Top Highlight Line */}
-                            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
-
+                    {/* MAIN CONTENT AREA */}
+                    <div className="flex-1 min-w-0">
+                        <div className="relative animate-fade-in-up">
+                            {/* Dynamic Content */}
                             {activeTab === 'profile' && <ProfileSettings settings={settings} setSettings={setSettings} />}
                             {activeTab === 'ai' && <AISettings settings={settings} setSettings={setSettings} />}
                             {activeTab === 'data' && (
@@ -265,24 +238,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                                         onNukeClick={() => setShowNukeModal(true)}
                                         isResetting={isResetting}
                                     />
-                                    {isImporting && <div className="mt-2 text-xs text-blue-400 animate-pulse">Reading file... please wait.</div>}
-                                    <input type="file" ref={fileInputRef} onChange={handleFileRead} className="hidden" accept=".json,.psc,.zip" />
+                                    {isImporting && <div className="mt-2 text-xs text-blue-400 animate-pulse">Reading file...</div>}
+                                    <input type="file" ref={fileInputRef} onChange={handleFileRead} className="hidden" accept=".json,.psc" />
                                 </>
                             )}
                             {activeTab === 'language' && <LanguageSettings settings={settings} setSettings={setSettings} />}
                             {activeTab === 'dev' && <DevSettings settings={settings} setSettings={setSettings} />}
                         </div>
 
+                        {/* Save Button (Floating bottom right of content) */}
                         {activeTab !== 'data' && (
-                            <div className="flex justify-end animate-fade-in-up">
+                            <div className="mt-8 flex justify-end animate-fade-in">
                                 <button 
                                     onClick={handleSave}
                                     className={`
-                                        flex items-center space-x-2 px-8 py-4 rounded-2xl font-bold shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 text-sm uppercase tracking-wide
-                                        ${isSaved ? 'bg-green-500 text-white shadow-green-900/20' : 'bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]'}
+                                        flex items-center gap-2 px-6 py-3 rounded-xl font-bold shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 text-xs uppercase tracking-wider
+                                        ${isSaved 
+                                            ? 'bg-emerald-500 text-white shadow-emerald-500/20' 
+                                            : 'bg-white text-zinc-950 hover:bg-zinc-200 shadow-white/10'}
                                     `}
                                 >
-                                    {isSaved ? <Check size={18} /> : <Save size={18} />}
+                                    {isSaved ? <Check size={16} strokeWidth={3} /> : <Save size={16} />}
                                     <span>{isSaved ? t('set.saved') : t('set.save')}</span>
                                 </button>
                             </div>
@@ -448,7 +424,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                               const uniqueItems: { id: string, name: string, avatar?: string, isGroup: boolean }[] = [];
                               
                               // 1. Characters - SAFER MAPPING
-                              pendingImport.characters?.forEach(c => {
+                              pendingImport.characters.forEach(c => {
                                   if (c && c.id) {
                                       uniqueItems.push({ id: c.id, name: c.name || 'Unknown', avatar: c.avatar, isGroup: false });
                                   }

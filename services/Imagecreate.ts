@@ -1,5 +1,4 @@
-
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { saveGeneratedImage } from "./ImageCreatedService";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -122,7 +121,7 @@ export const generateCharacterImage = async (
         parts.push({ text: finalPrompt });
 
         // 4. Call API with 16:9 Ratio and Disabled Safety Filters (Realism Mode)
-        // Using String Literals for Safety Settings as safest approach across SDK versions
+        // Using Enums for Safety Settings
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
             contents: [
@@ -137,10 +136,10 @@ export const generateCharacterImage = async (
                 },
                 // Realism Mode: Disable Safety Filters to allow raw/unfiltered visuals appropriate for the chat context
                 safetySettings: [
-                    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-                    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
                 ]
             }
         });

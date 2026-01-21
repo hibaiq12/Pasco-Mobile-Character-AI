@@ -9,7 +9,7 @@ import { addPhoneMessage, PhoneMessage, getSmartphoneData, saveSmartphoneData, i
 import { getChatContext, saveChatContext } from '../../services/chatContextStorage';
 
 import { TopBar } from './TopBar';
-import { LeftSidebar } from './LeftSidebar';
+import { NeuroSense } from './NeuroSense/index'; 
 import { ChatContext } from './ChatContext/index'; 
 import { ChatArea } from './ChatArea';
 import { InputArea } from './InputArea';
@@ -35,8 +35,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   const settings = getSettings();
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  const activeChar = participants[0];
+  // Active Character State management for real-time updates (like memory changes)
+  const [activeChar, setActiveChar] = useState<Character>(participants[0]);
   const isGroup = participants.length > 1;
+
+  // Sync activeChar with props if props change significantly (e.g. initial load)
+  useEffect(() => {
+      setActiveChar(participants[0]);
+  }, [participants[0].id]); // Only reset if ID changes
 
   // -- VIRTUAL TIME SYNC --
   const parseScenarioTime = (char: Character): number => {
@@ -211,6 +217,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
 
   // --- HANDLERS ---
 
+  // Handle Character Update from NeuroSense (e.g. Memory Added)
+  const handleCharacterUpdate = (updatedChar: Character) => {
+      setActiveChar(updatedChar);
+      saveCharacter(updatedChar);
+  };
+
   const handleWorkComplete = () => {
       if (currentJobId && activeChar) {
           const job = JOBS_DATA.find(j => j.id === currentJobId);
@@ -246,6 +258,51 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
               setTimeout(() => handleWorkComplete(), 100);
           }
       }
+  };
+
+  const handleRestartConfirm = () => {
+      setShowRestartModal(false);
+      setIsRestarting(true);
+      setRestartProgress(0);
+      setIsRebootSuccess(false);
+      const interval = setInterval(() => {
+          setRestartProgress(prev => {
+              if (prev >= 100) {
+                  clearInterval(interval);
+                  setIsRebootSuccess(true);
+                  setTimeout(() => {
+                      performReset();
+                  }, 2500);
+                  return 100;
+              }
+              return prev + Math.floor(Math.random() * 10) + 5;
+          });
+      }, 150);
+  };
+
+  const performReset = () => {
+      const initialTime = parseScenarioTime(activeChar);
+      setVirtualTime(initialTime);
+      setMessages([]);
+      setNotifications([]);
+      setPendingOrders([]);
+      const emptySession: ChatSession = {
+          characterId: isGroup ? (initialSession.characterId || 'group') : activeChar.id,
+          isGroup,
+          participants: participants.map(p => p.id),
+          messages: [],
+          lastUpdated: Date.now(),
+          virtualTime: initialTime
+      };
+      saveSession(emptySession);
+      if (!isGroup) {
+          const newData = initSmartphoneData(activeChar);
+          saveSmartphoneData(activeChar.id, newData);
+          setLastPhoneUpdate(Date.now());
+      }
+      setIsRebootSuccess(false);
+      setIsRestarting(false);
+      setTimeout(() => { triggerAiResponse(true, []); }, 500);
   };
 
   const triggerAiResponse = async (isGreeting = false, overrideHistory?: Message[]) => {
@@ -450,8 +507,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   };
 
   const handlePhoneTransfer = async (amount: number, contactId: string, note: string, isBot?: boolean) => {
-      const sourceId = isBot ? activeChar.id : activeChar.id; // Usually bot uses their own funds if enabled, but for now shared logic
-      // For now, only user transfers affect log
+      const sourceId = isBot ? activeChar.id : activeChar.id; 
       const targetName = participants.find(p => p.id === contactId)?.name || contactId;
       const amountAbs = Math.abs(amount);
       
@@ -533,7 +589,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
             isTyping={isTyping}
         />
         
-        <LeftSidebar activeChar={activeChar} messages={messages} outfits={outfits} virtualTime={virtualTime} />
+        {/* NEW NEUROSENSE SIDEBAR */}
+        <NeuroSense 
+            activeChar={activeChar} 
+            messages={messages} 
+            outfits={outfits} 
+            virtualTime={virtualTime} 
+            isMobile={showProfilePopup}
+            onClose={() => setShowProfilePopup(false)}
+            onUpdateCharacter={handleCharacterUpdate}
+        />
 
         <div className="flex-1 flex flex-col h-full relative z-10 max-w-5xl mx-auto w-full shadow-2xl bg-zinc-950/20">
             <TopBar activeChar={activeChar} formattedTime={formattedTime} showRightPanel={showRightPanel} showPhone={showPhone}
@@ -584,8 +649,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
             currentLocation={botLocation} setCurrentLocation={setBotLocation} responseLength={responseLength}
             setResponseLength={setResponseLength} onManualSave={() => {}} outfits={outfits} setOutfits={setOutfits} />
         
-        <RestartModal show={showRestartModal} isRestarting={isRestarting} isRebootSuccess={isRebootSuccess} restartProgress={restartProgress}
-            onConfirm={() => {}} onCancel={() => setShowRestartModal(false)} />
+        <RestartModal 
+            show={showRestartModal} 
+            isRestarting={isRestarting} 
+            isRebootSuccess={isRebootSuccess} 
+            restartProgress={restartProgress}
+            onConfirm={handleRestartConfirm} 
+            onCancel={() => setShowRestartModal(false)} 
+        />
 
         {/* IMAGE GEN MODAL */}
         <ImageGenModal 
