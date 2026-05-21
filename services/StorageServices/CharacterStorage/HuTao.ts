@@ -28,5 +28,5 @@ export const HuTao: Character = {
     lore: { backstory: "Inherited the parlor at a young age.", secrets: "Talks to ghosts.", allies: "Zhongli", enemies: "Fatui", userRelationship: "Friend/Client" },
     memory: { memories: ["Grandfather's passing"], obsessions: "Coupons" },
     scenario: { currentLocation: "Wangsheng Parlor", currentActivity: "Writing poetry", startTime: { year: '2024', month: '10', day: '31', hour: '23', minute: '00' } },
-    modelConfig: { modelName: 'gemini-2.5-flash', temperature: 0.9 }
+    modelConfig: { modelName: 'gemini-3.1-flash-lite-preview', temperature: 0.9 }
 };

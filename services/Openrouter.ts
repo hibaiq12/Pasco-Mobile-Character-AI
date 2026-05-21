@@ -1,4 +1,6 @@
 
+import { OpenRouter } from "@openrouter/sdk";
+
 export const generateOpenRouterResponse = async (
   apiKey: string,
   model: string,
@@ -6,56 +8,93 @@ export const generateOpenRouterResponse = async (
 ): Promise<string> => {
   try {
     const cleanKey = apiKey ? apiKey.trim() : "";
-    // Changed default to Gemini 2.0 Flash Lite Free as it has better availability than Mistral 7B Free
-    const cleanModel = model ? model.trim() : "google/gemini-2.0-flash-lite-preview-02-05:free";
+    const cleanModel = model ? model.trim() : "mistralai/devstral-2512:free";
 
     if (!cleanKey) {
-        throw new Error("API Key is missing or empty");
+        throw new Error("API Key is missing. Please set your OpenRouter API Key in Settings.");
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${cleanKey}`,
-        "HTTP-Referer": typeof window !== 'undefined' ? window.location.origin : "http://localhost",
-        "X-Title": "Pasco Neural Interface",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        "model": cleanModel,
-        "messages": messages,
-        // Optional: Some providers might behave better with this, but it's not standard for policy 404s
-        // "provider": { "allow_fallbacks": true } 
-      })
+    const openrouter = new OpenRouter({
+      apiKey: cleanKey
     });
 
-    if (!response.ok) {
-        let errorText = await response.text();
-        try {
-            // Try to parse JSON error message from OpenRouter if available
-            const errJson = JSON.parse(errorText);
-            if (errJson.error && errJson.error.message) {
-                errorText = errJson.error.message;
-            }
-        } catch (e) {
-            // Ignore JSON parse error, use raw text
+    try {
+        // We stream the response to get reasoning tokens in usage as optimally suggested
+        const stream = await openrouter.chat.send({
+          httpReferer: typeof window !== 'undefined' ? window.location.origin : "http://localhost",
+          appTitle: "Pasco Neural Interface",
+          chatRequest: {
+            model: cleanModel,
+            messages: messages as unknown as { role: 'user' | 'assistant' | 'system'; content: string }[],
+            stream: true
+          }
+        });
+
+        let fullResponse = "";
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            fullResponse += content;
+          }
+
+          // Usage information comes in the final chunk
+          if (chunk.usage) {
+            console.log("\nReasoning tokens (OpenRouter):", chunk.usage.reasoningTokens);
+          }
+        }
+
+        // Safety check for response structure
+        if (!fullResponse) {
+             throw new Error("OpenRouter: Empty response received from provider.");
         }
         
-        // Truncate very long HTML error pages
-        const displayError = errorText.length > 150 ? errorText.substring(0, 150) + "..." : errorText;
-        throw new Error(`OpenRouter ${response.status}: ${displayError}`);
+        return fullResponse;
+    } catch (e: unknown) {
+        const errorObj = e as Record<string, any>;
+        // Fallback for "Provider returned error" (Often related to streaming unsupported on some upstream providers)
+        // Ensure we don't fallback if the status code is 429 (Rate Limit) because it will just hit the rate limit again immediately.
+        if (errorObj?.statusCode !== 429 && (errorObj?.message?.includes("Provider returned error") || errorObj?.data$?.error?.message?.includes("Provider returned error"))) {
+             console.warn("OpenRouter stream failed with Provider error. Falling back to non-stream request...");
+             const fallbackRes = await openrouter.chat.send({
+                 httpReferer: typeof window !== 'undefined' ? window.location.origin : "http://localhost",
+                 appTitle: "Pasco Neural Interface",
+                 chatRequest: {
+                     model: cleanModel,
+                     messages: messages as unknown as { role: 'user' | 'assistant' | 'system'; content: string }[],
+                     stream: false
+                 }
+             });
+             // For non-streaming, openrouter SDK returns the full result, not an EventStream
+             return fallbackRes.choices[0]?.message?.content || "";
+        }
+        throw new Error(`OpenRouter stream failed: ${e instanceof Error ? e.message : 'Unknown'}`, { cause: e });
+    }
+  } catch (error: unknown) {
+    const errorObj = error as Record<string, any>;
+    let errMsg = errorObj.message || "Unknown error";
+    
+    // Attempt to extract a more descriptive message from OpenRouter's metadata if available
+    if (errorObj?.body) {
+        try {
+            const parsed = JSON.parse(errorObj.body as string);
+            if (parsed.error?.metadata?.raw) {
+                errMsg = parsed.error.metadata.raw; // This often contains rate limit details or upstream provider specifics
+            } else if (parsed.error?.message && parsed.error.message !== "Provider returned error") {
+                errMsg = parsed.error.message;
+            }
+        } catch (_) { 
+            // ignore
+        }
+    } else if (errorObj?.data$?.error?.message && errorObj.data$.error.message !== "Provider returned error") {
+        errMsg = errorObj.data$.error.message;
+    }
+    
+    // Add status code info if available
+    if (errorObj?.statusCode) {
+        errMsg = `(HTTP ${errorObj.statusCode}) ${errMsg}`;
     }
 
-    const data = await response.json();
-    
-    // Safety check for response structure
-    if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
-         throw new Error("OpenRouter: Empty response received");
-    }
-    
-    return data.choices[0].message.content || "";
-  } catch (error: any) {
-    console.error("OpenRouter Fetch Error:", error);
-    throw error; // Re-throw to be caught by UI
+    console.error("OpenRouter Fetch Error Full Object:", JSON.stringify(error, Object.getOwnPropertyNames(errorObj), 2));
+    throw new Error(`OpenRouter API Error: ${errMsg}`, { cause: error }); // Re-throw to be caught by UI
   }
 };

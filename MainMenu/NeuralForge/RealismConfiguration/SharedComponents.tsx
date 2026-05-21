@@ -42,7 +42,7 @@ interface SliderProps {
 }
 
 export const Slider: React.FC<SliderProps> = ({ label, value, onChange, leftLabel, rightLabel, accentColor = "blue", insight, warning }) => {
-    const colors: Record<string, any> = {
+    const colors: Record<string, { text: string, gradient: string, border: string, glow: string }> = {
         blue: { text: 'text-blue-400', gradient: 'bg-gradient-to-r from-blue-600 to-cyan-400', border: 'border-blue-400', glow: 'shadow-blue-500/20' },
         cyan: { text: 'text-cyan-400', gradient: 'bg-gradient-to-r from-cyan-600 to-teal-400', border: 'border-cyan-400', glow: 'shadow-cyan-500/20' },
         emerald: { text: 'text-emerald-400', gradient: 'bg-gradient-to-r from-emerald-600 to-green-400', border: 'border-emerald-400', glow: 'shadow-emerald-500/20' },
@@ -190,7 +190,7 @@ export const InputField: React.FC<InputFieldProps> = ({ labelKey, value, onChang
 };
 
 // --- AUTO BUTTON (BLUE THEME) ---
-export const AutoConfigButton = ({ onClick, isGenerating, sectionName }: { onClick: () => void, isGenerating: boolean, sectionName: string }) => (
+export const AutoConfigButton = ({ onClick, isGenerating }: { onClick: () => void, isGenerating: boolean }) => (
     <button 
         onClick={onClick} 
         disabled={isGenerating}

@@ -28,5 +28,5 @@ export const Shikimori: Character = {
     lore: { backstory: "A popular girl who fell for the unlucky boy.", secrets: "Practices looking cool.", allies: "Friends", enemies: "Bad luck", userRelationship: "Girlfriend" },
     memory: { memories: ["School Festival"], obsessions: "User's safety" },
     scenario: { currentLocation: "Park Bench", currentActivity: "Waiting for date", startTime: { year: '2024', month: '04', day: '10', hour: '10', minute: '00' } },
-    modelConfig: { modelName: 'gemini-2.5-flash', temperature: 0.6 }
+    modelConfig: { modelName: 'gemini-3.1-flash-lite-preview', temperature: 0.6 }
 };

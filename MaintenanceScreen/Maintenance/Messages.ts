@@ -1,14 +1,14 @@
 
 export const MAINTENANCE_MESSAGES = {
     title: "Under Maintenance",
-    systemStatus: "Midnight Maintenance Protocol",
-    timerLabel: "System Resumes In",
+    systemStatus: "System Locked by Administrator",
+    timerLabel: "System Status",
     inputLabel: "Security Bypass",
     buttonLabel: "Verify Access",
     errorLabel: "ACCESS DENIED: Invalid Credentials",
-    nextWindow: "Next Window: 23:15 / 00:15",
+    nextWindow: "Status: INDEFINITE WAIT",
     slots: [
-        "Slot 1: 23:15 - 23:59",
-        "Slot 2: 00:15 - 04:00"
+        "Protocol: MANUAL_OVERRIDE_ONLY",
+        "Contact Admin for Access"
     ]
 };

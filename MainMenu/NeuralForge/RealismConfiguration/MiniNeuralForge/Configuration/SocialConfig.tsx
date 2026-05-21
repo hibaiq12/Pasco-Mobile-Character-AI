@@ -1,11 +1,11 @@
 
 import React from 'react';
 import { Slider, InputField } from '../../SharedComponents';
-import { Users, Globe, UserCheck } from 'lucide-react';
+import { Users, Globe } from 'lucide-react';
 
 interface SocialConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const SocialConfig: React.FC<SocialConfigProps> = ({ data, onChange }) => {
@@ -19,7 +19,7 @@ export const SocialConfig: React.FC<SocialConfigProps> = ({ data, onChange }) =>
                 
                 <Slider 
                     label="Social Battery"
-                    value={data.socialBattery || 50}
+                    value={(data.socialBattery as number) || 50}
                     onChange={(v) => onChange('socialBattery', v)}
                     leftLabel="Introvert"
                     rightLabel="Extrovert"

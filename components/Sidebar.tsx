@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isM
         <div className="flex flex-col items-center justify-end pb-8 opacity-40 hover:opacity-100 transition-opacity duration-300">
             <div className="w-[1px] h-12 bg-gradient-to-b from-transparent via-zinc-500 to-transparent mb-4"></div>
             <span className="text-[10px] font-mono text-zinc-500 writing-vertical-lr tracking-widest uppercase">
-                v0.8.2.5
+                v0.8.4
             </span>
         </div>
       </div>
@@ -96,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isM
                      p-2 rounded-2xl transition-all duration-300
                      ${isActive ? 'bg-violet-500/10 shadow-[0_0_15px_rgba(139,92,246,0.2)] scale-110 ring-1 ring-violet-500/30' : 'bg-transparent'}
                   `}>
-                      {React.cloneElement(item.icon as any, { size: isMobileHeader ? 20 : 22 })}
+                      {React.cloneElement(item.icon as React.ReactElement, { size: isMobileHeader ? 20 : 22 })}
                   </div>
                   
                   {isActive && !isMobileHeader && (

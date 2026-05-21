@@ -1,3 +1,4 @@
+
 import { getSettings } from './StorageServices/settings';
 
 export type LangCode = 'en' | 'id' | 'jp' | 'es' | 'fr' | 'de';
@@ -15,6 +16,13 @@ const DICTIONARY: Record<LangCode, Record<string, string>> = {
     'dash.empty_title': 'No Echoes Found',
     'dash.begin': 'Begin Initialization',
     'dash.resonating': 'Resonating Signatures',
+    
+    // Banner / Card
+    'banner.new_arrival': 'New Arrival',
+    'banner.realism': 'Realism Update',
+    'banner.chat_now': 'Chat Now',
+    'banner.story_mode': 'Story Mode',
+    'banner.new_mode': 'NEW MODE',
     
     // Forge
     'forge.title': 'Neural Forge',
@@ -137,6 +145,7 @@ const DICTIONARY: Record<LangCode, Record<string, string>> = {
     'set.nav.profile': 'Profile',
     'set.nav.ai': 'AI Config',
     'set.nav.data': 'Data',
+    'set.nav.appearance': 'Appearance',
     'set.nav.language': 'Language',
     'set.nav.dev': 'Developer',
     
@@ -186,6 +195,17 @@ const DICTIONARY: Record<LangCode, Record<string, string>> = {
     'import.tag.detected': 'Detected',
     'import.tag.undetected': 'Empty',
     'import.btn.restore': 'Restore Selected',
+    
+    // Changelog
+    'changelog.massive': 'Massive Update',
+    'changelog.build': 'Build',
+    'changelog.roster': 'Roster Expansion',
+    'changelog.visual': 'Visual & System Overhaul',
+    'changelog.ai': 'Hyper-Realism AI Protocol',
+    'changelog.update': 'Update System',
+    'changelog.welcome': 'System initialized. Welcome to the new reality.',
+    'changelog.continue': 'Continue Journey',
+    'changelog.wait': 'Wait',
 
     // Characters
     'char.delpiero.desc': 'Charismatic and cruel cartel leader from the 1980s. Cold gaze, burning loyalty.',
@@ -265,6 +285,13 @@ const DICTIONARY: Record<LangCode, Record<string, string>> = {
     'dash.empty_title': 'Tidak Ada Gema',
     'dash.begin': 'Mulai Inisialisasi',
     'dash.resonating': 'Resonansi Sinyal',
+
+    // Banner / Card
+    'banner.new_arrival': 'Pendatang Baru',
+    'banner.realism': 'Update Realisme',
+    'banner.chat_now': 'Mulai Chat',
+    'banner.story_mode': 'Mode Cerita',
+    'banner.new_mode': 'MODE BARU',
     
     // Forge
     'forge.title': 'Neural Forge',
@@ -387,6 +414,7 @@ const DICTIONARY: Record<LangCode, Record<string, string>> = {
     'set.nav.profile': 'Profil',
     'set.nav.ai': 'Konfigurasi AI',
     'set.nav.data': 'Data',
+    'set.nav.appearance': 'Tampilan',
     'set.nav.language': 'Bahasa',
     'set.nav.dev': 'Developer',
     
@@ -436,6 +464,17 @@ const DICTIONARY: Record<LangCode, Record<string, string>> = {
     'import.tag.detected': 'Terdeteksi',
     'import.tag.undetected': 'Kosong',
     'import.btn.restore': 'Pulihkan Terpilih',
+    
+    // Changelog
+    'changelog.massive': 'Update Masif',
+    'changelog.build': 'Versi',
+    'changelog.roster': 'Ekspansi Roster',
+    'changelog.visual': 'Perombakan Visual & Sistem',
+    'changelog.ai': 'Protokol AI Hyper-Realism',
+    'changelog.update': 'Perbarui Sistem',
+    'changelog.welcome': 'Sistem diinisialisasi. Selamat datang di realitas baru.',
+    'changelog.continue': 'Lanjutkan Perjalanan',
+    'changelog.wait': 'Tunggu',
 
     // Characters
     'char.delpiero.desc': 'Pemimpin kartel karismatik dan kejam dari era 1980-an. Tatapannya dingin, namun hatinya menyimpan api loyalitas yang membara.',

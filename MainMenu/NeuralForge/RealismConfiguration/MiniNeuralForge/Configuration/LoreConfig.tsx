@@ -4,8 +4,8 @@ import { InputField } from '../../SharedComponents';
 import { BookOpen } from 'lucide-react';
 
 interface LoreConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const LoreConfig: React.FC<LoreConfigProps> = ({ data, onChange }) => {

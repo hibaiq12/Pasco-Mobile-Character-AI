@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { InputField } from './SharedComponents';
-import { t } from '../../../../services/translationService';
+import { t } from '../../../services/translationService';
 import { HeartHandshake } from 'lucide-react';
 
 interface EmotionalConfigProps {

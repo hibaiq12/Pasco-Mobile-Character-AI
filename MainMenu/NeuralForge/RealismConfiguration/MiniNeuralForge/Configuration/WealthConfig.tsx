@@ -4,12 +4,12 @@ import { Slider, InputField } from '../../SharedComponents';
 import { DollarSign, CreditCard, TrendingUp } from 'lucide-react';
 
 interface WealthConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const WealthConfig: React.FC<WealthConfigProps> = ({ data, onChange }) => {
-    const wealthLevel = data.wealthLevel || 50;
+    const wealthLevel = (data.wealthLevel as number) || 50;
     
     const getWealthLabel = (val: number) => {
         if (val < 20) return "Destitute / Debt";

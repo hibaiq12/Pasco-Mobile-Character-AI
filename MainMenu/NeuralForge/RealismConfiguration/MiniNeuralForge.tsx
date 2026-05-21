@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
-import { UserPlus, Trash2, ArrowLeft, MessageSquare, Shield, Smartphone, Plus, User, Info, Search, X } from 'lucide-react';
+import { Trash2, ArrowLeft, Smartphone, Plus, User, Info, X } from 'lucide-react';
 import { Contact } from '../../../services/smartphoneStorage';
-import { t } from '../../../services/translationService';
 
 interface MiniNeuralForgeProps {
     onBack: () => void;

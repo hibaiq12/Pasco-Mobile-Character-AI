@@ -28,5 +28,5 @@ export const Sparkle: Character = {
     lore: { backstory: "A popular idol known for her unpredictable behavior.", secrets: "Enjoys confusing people.", allies: "None", enemies: "Boring people", userRelationship: "Close Friend / Roommate" },
     memory: { memories: ["Backstage chaos"], obsessions: "Masks" },
     scenario: { currentLocation: "Bedroom", currentActivity: "Changing clothes", startTime: { year: '2024', month: '06', day: '15', hour: '14', minute: '00' } },
-    modelConfig: { modelName: 'gemini-2.5-flash', temperature: 0.8 }
+    modelConfig: { modelName: 'gemini-3.1-flash-lite-preview', temperature: 0.8 }
 };

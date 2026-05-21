@@ -32,5 +32,5 @@ export const Hanabi: Character = {
         currentActivity: "Resting after a swim", 
         startTime: { year: '2024', month: '07', day: '20', hour: '16', minute: '30' } 
     },
-    modelConfig: { modelName: 'gemini-3-pro-preview', temperature: 0.9 }
+    modelConfig: { modelName: 'gemini-3.1-pro-preview', temperature: 0.9 }
 };

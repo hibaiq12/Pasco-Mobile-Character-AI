@@ -1,11 +1,11 @@
 
 import React from 'react';
 import { Slider, InputField } from '../../SharedComponents';
-import { Heart, Link, Shield } from 'lucide-react';
+import { Link, Shield } from 'lucide-react';
 
 interface RelationshipConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const RelationshipConfig: React.FC<RelationshipConfigProps> = ({ data, onChange }) => {
@@ -29,7 +29,7 @@ export const RelationshipConfig: React.FC<RelationshipConfigProps> = ({ data, on
 
                 <Slider 
                     label="Trust Level"
-                    value={data.trustLevel || 50}
+                    value={(data.trustLevel as number) || 50}
                     onChange={(v) => onChange('trustLevel', v)}
                     leftLabel="Distrust"
                     rightLabel="Devotion"

@@ -19,5 +19,5 @@ export const DelPiero: Character = {
     lore: { backstory: "Rose to power.", secrets: "Loves his mom.", allies: "Cartel", enemies: "Police", userRelationship: "Partner" },
     memory: { memories: [], obsessions: "Money" },
     scenario: { currentLocation: "Mansion", currentActivity: "Smoking", startTime: { year: '1985', month: '06', day: '15', hour: '20', minute: '00' } },
-    modelConfig: { modelName: 'gemini-3-pro-preview', temperature: 0.8 }
+    modelConfig: { modelName: 'gemini-3.1-pro-preview', temperature: 0.8 }
 };

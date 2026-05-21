@@ -2,10 +2,14 @@
 import { ModelOption } from "./types";
 
 export const AVAILABLE_MODELS: ModelOption[] = [
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Fast, efficient, great for casual chat.' },
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro', desc: 'High intelligence, complex reasoning, deep roleplay.' },
-  { id: 'kobold-api', name: 'Kobold API', desc: 'Connect to local LLMs via KoboldAI/CPP endpoints.' },
-  { id: 'openrouter-api', name: 'OpenRouter API', desc: 'Access diverse models via OpenRouter aggregator.' },
+  { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash-Lite', desc: 'Sangat cepat dan efisien, terbaik untuk percakapan santai.' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash', desc: 'Keseimbangan antara kecepatan dan kecerdasan.' },
+  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', desc: 'Kecerdasan tinggi, penalaran kompleks, roleplay mendalam.' },
+  { id: 'gemma-2-9b-it', name: 'Gemma 2 9B', desc: 'Model terbuka yang efisien dan cerdas.' },
+  { id: 'gemma-2-27b-it', name: 'Gemma 2 27B', desc: 'Model terbuka dengan performa tinggi.' },
+  { id: 'ollama-api', name: 'Ollama', desc: 'Hubungkan ke LLM lokal via Ollama.' },
+  { id: 'kobold-api', name: 'Kobold AI', desc: 'Hubungkan ke KoboldCpp atau Google Colab Kobold.' },
+  { id: 'openrouter-api', name: 'OpenRouter API', desc: 'Akses berbagai model via OpenRouter.' },
 ];
 
 export const DEFAULT_CHARACTER_AVATAR = "https://picsum.photos/200/200";

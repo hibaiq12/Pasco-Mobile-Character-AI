@@ -38,7 +38,7 @@ export const validateFaceInImage = async (base64Image: string): Promise<boolean>
         const cleanBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
         
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.1-flash-lite-preview',
             contents: [
                 {
                     role: 'user',
@@ -68,7 +68,8 @@ export const validateFaceInImage = async (base64Image: string): Promise<boolean>
 export const generateCharacterImage = async (
     prompt: string,
     referenceImage: string,
-    characterId: string // Added to link image to character
+    characterId: string,
+    aspectRatio: "16:9" | "9:16" | "1:1" = "16:9"
 ): Promise<string | null> => {
     try {
         let imageData: { base64: string, mimeType: string } | null = null;
@@ -96,17 +97,17 @@ export const generateCharacterImage = async (
             });
         }
 
-        // 3. Construct Text Prompt with Maximized Dialogue Context
+        // 3. Construct Text Prompt
         let finalPrompt = `
-        Create a high-quality, cinematic anime style illustration (16:9 Wide Ratio).
+        Create a high-quality, cinematic anime style illustration.
+        Aspect Ratio: ${aspectRatio}.
         
-        SCENE & DIALOGUE CONTEXT:
+        SCENE DESCRIPTION:
         ${prompt}
         
         VISUALIZATION RULES:
-        1. Capture the exact emotion, mood, and action described in the dialogue context above.
-        2. If the dialogue suggests intimacy, anger, or sadness, reflect it vividly in the character's expression and lighting.
-        3. Make it look like a scene from a high-budget anime movie.
+        1. Capture the exact emotion, mood, and action described.
+        2. Make it look like a scene from a high-budget anime movie.
         `;
 
         if (imageData) {
@@ -114,16 +115,14 @@ export const generateCharacterImage = async (
             STRICT CONSISTENCY:
             1. Use the provided reference image as the PRIMARY SOURCE for the character's facial features, hair style, and hair color.
             2. Maintain the anatomy and body build described or implied in the reference.
-            3. Ensure the clothing matches the description provided in the prompt.
             `;
         }
 
         parts.push({ text: finalPrompt });
 
-        // 4. Call API with 16:9 Ratio and Disabled Safety Filters (Realism Mode)
-        // Using Enums for Safety Settings
+        // 4. Call API
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
+            model: 'gemini-2.8-flash-image', // Updated model alias if needed, or stick to provided pattern
             contents: [
                 {
                     role: 'user',
@@ -132,9 +131,8 @@ export const generateCharacterImage = async (
             ],
             config: {
                 imageConfig: {
-                    aspectRatio: "16:9" // Enforce 16:9 Aspect Ratio
+                    aspectRatio: aspectRatio
                 },
-                // Realism Mode: Disable Safety Filters to allow raw/unfiltered visuals appropriate for the chat context
                 safetySettings: [
                     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
                     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },

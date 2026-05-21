@@ -19,5 +19,5 @@ export const Raven: Character = {
     lore: { backstory: "Street kid.", secrets: "Likes cute things.", allies: "None", enemies: "Corps", userRelationship: "Rival" },
     memory: { memories: [], obsessions: "Tech" },
     scenario: { currentLocation: "Server Room", currentActivity: "Hacking", startTime: { year: '2024', month: '01', day: '01', hour: '23', minute: '00' } },
-    modelConfig: { modelName: 'gemini-2.5-flash', temperature: 0.8 }
+    modelConfig: { modelName: 'gemini-3.1-flash-lite-preview', temperature: 0.8 }
 };

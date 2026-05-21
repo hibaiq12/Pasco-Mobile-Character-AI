@@ -1,7 +1,7 @@
 
-import React, { memo, useState, useMemo, useEffect } from 'react';
+import React, { memo, useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Character, ChatSession } from '../types';
-import { Plus, Search, Ghost, Settings, Flame, Zap, Clock, Brain, BookOpen } from 'lucide-react';
+import { Plus, Search, Ghost, Settings, Flame, Zap, Brain, ChevronLeft, ChevronRight } from 'lucide-react';
 import { t } from '../services/translationService';
 import { NewCharacterAvailable } from '../components/NewCharacterAvailable';
 import { CharacterBook } from '../components/CharacterBook';
@@ -24,6 +24,9 @@ interface CharacterCardProps {
   onEdit: (id: string) => void;
 }
 
+// Base64 Noise Texture for Reliability
+const BASE64_NOISE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCI+PGRlZnM+PGZpbHRlciBpZD0iYSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIwLjE1Ii8+PC9zdmc+";
+
 // Memoized Card for Performance
 const CharacterCard: React.FC<CharacterCardProps> = memo(({ 
   char, 
@@ -40,13 +43,14 @@ const CharacterCard: React.FC<CharacterCardProps> = memo(({
        return nsfwKeywords.some(k => text.toLowerCase().includes(k));
    };
 
+   // --- REALISM DETECTION ---
+   const isRealism = char.id === 'char-hiyori' || char.id.startsWith('realism-');
+
    const isNsfw = checkTrait(char.systemInstruction) || 
                   checkTrait(char.description) ||
                   checkTrait(char.socialProfile?.interactionStyle) ||
-                  checkTrait(char.duality?.core);
-
-   // --- REALISM DETECTION ---
-   const isRealism = char.id === 'char-hiyori';
+                  checkTrait(char.duality?.core) ||
+                  isRealism; 
 
    // --- LOCALIZATION FOR BUILT-IN CHARACTERS ---
    const descKey = `char.${char.id.replace('char-', '')}.desc`;
@@ -138,6 +142,16 @@ const Hub: React.FC<HubProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCharacterBook, setShowCharacterBook] = useState(false);
+  
+  // --- CAROUSEL STATE ---
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  
+  const [isDown, setIsDown] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [currentTranslate, setCurrentTranslate] = useState(0);
+  const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync state with parent to hide sidebar
   useEffect(() => {
@@ -162,9 +176,132 @@ const Hub: React.FC<HubProps> = ({
       });
   }, [characters, sessions, searchQuery]);
 
-  // --- FIND FEATURED CHARACTER (HIYORI) ---
-  const featuredId = 'char-hiyori';
-  const featuredChar = characters.find(c => c.id === featuredId);
+  // --- FEATURED CHARACTERS (CAROUSEL) ---
+  const bannerCharacters = useMemo(() => {
+      const hiyori = characters.find(c => c.id === 'char-hiyori');
+      const hikaru = characters.find(c => c.id === 'realism-hikaru');
+      const list = [];
+      // Explicit order: Hiyori Page 1, Hikaru Page 2
+      if (hiyori) list.push(hiyori);
+      if (hikaru) list.push(hikaru);
+      
+      // Fallback if none found (dev mode safety)
+      if (list.length === 0) return characters.slice(0, 2);
+      
+      return list;
+  }, [characters]);
+
+  // --- INFINITE LOOP LOGIC ---
+  // Create a list with the first item appended to the end for seamless transition
+  const carouselSlides = useMemo(() => {
+      if (bannerCharacters.length < 2) return bannerCharacters;
+      return [...bannerCharacters, bannerCharacters[0]];
+  }, [bannerCharacters]);
+
+  const length = bannerCharacters.length;
+
+  // Handle Loop Reset (Snap back to start without transition)
+  useEffect(() => {
+      if (currentIndex === length) {
+          const timer = setTimeout(() => {
+              setIsTransitioning(false);
+              setCurrentIndex(0);
+          }, 500); // Wait for transition to finish
+          return () => clearTimeout(timer);
+      }
+  }, [currentIndex, length]);
+
+  // Re-enable transition after snap
+  useEffect(() => {
+      if (currentIndex === 0 && !isTransitioning) {
+          const timer = setTimeout(() => {
+              setIsTransitioning(true);
+          }, 50);
+          return () => clearTimeout(timer);
+      }
+  }, [currentIndex, isTransitioning]);
+
+
+  // Navigation Logic
+  const nextBanner = useCallback(() => {
+      // Prevent rapid clicking during snap-back
+      if (currentIndex >= length && !isTransitioning) return;
+      setIsTransitioning(true);
+      setCurrentIndex((prev) => prev + 1);
+  }, [currentIndex, length, isTransitioning]);
+
+  const stopAutoPlay = useCallback(() => {
+      if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+  }, []);
+
+  const startAutoPlay = useCallback(() => {
+      stopAutoPlay();
+      if (length > 1) {
+          autoPlayRef.current = setInterval(() => {
+              nextBanner();
+          }, 5000);
+      }
+  }, [length, nextBanner, stopAutoPlay]);
+
+  // --- AUTO PLAY LOGIC ---
+  useEffect(() => {
+      startAutoPlay();
+      return () => stopAutoPlay();
+  }, [startAutoPlay, stopAutoPlay]);
+
+  const prevBanner = () => {
+      setIsTransitioning(true);
+      // If at start, wrap to end (Standard rewind behavior for Prev is acceptable)
+      setCurrentIndex((prev) => (prev === 0 ? length - 1 : prev - 1));
+  };
+
+  const activeBannerChar = bannerCharacters[currentIndex % length];
+
+  // --- DRAG HANDLERS ---
+  const handleStart = (clientX: number) => {
+      stopAutoPlay();
+      setIsDown(true);
+      setStartX(clientX);
+  };
+
+  const handleMove = (clientX: number) => {
+      if (!isDown) return;
+      const diff = clientX - startX;
+      
+      if (Math.abs(diff) > 10 && !isDragging) {
+           setIsDragging(true);
+      }
+      
+      if (isDragging) {
+           setCurrentTranslate(diff);
+      }
+  };
+
+  const handleEnd = () => {
+      if (isDragging) {
+          const threshold = 50; 
+          if (currentTranslate < -threshold) {
+               nextBanner();
+          } else if (currentTranslate > threshold) {
+               prevBanner();
+          }
+      }
+      
+      setIsDown(false);
+      setIsDragging(false);
+      setCurrentTranslate(0);
+      startAutoPlay();
+  };
+
+  const handleMouseLeave = () => {
+      if (isDragging) {
+          handleEnd();
+      } else {
+          startAutoPlay();
+      }
+      setIsDown(false);
+      setIsDragging(false);
+  };
 
   return (
     <div 
@@ -180,17 +317,17 @@ const Hub: React.FC<HubProps> = ({
       <div className="fixed inset-0 pointer-events-none bg-zinc-950">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-violet-900/10 via-zinc-950/0 to-zinc-950/0" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-900/10 via-zinc-950/0 to-zinc-950/0" />
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.015] mix-blend-overlay"></div>
+          <div className="absolute inset-0 opacity-[0.015] mix-blend-overlay" style={{ backgroundImage: `url("${BASE64_NOISE}")` }}></div>
       </div>
 
       {/* --- CHARACTER BOOK MODAL --- */}
-      {showCharacterBook && featuredChar && (
+      {showCharacterBook && activeBannerChar && (
           <CharacterBook 
-              character={featuredChar} 
+              character={activeBannerChar} 
               onClose={() => setShowCharacterBook(false)}
               onStartChat={() => {
                   setShowCharacterBook(false);
-                  onSelectCharacter(featuredChar.id);
+                  onSelectCharacter(activeBannerChar.id);
               }}
           />
       )}
@@ -267,13 +404,73 @@ const Hub: React.FC<HubProps> = ({
                  </div>
             ) : (
                 <section>
-                    {/* === HIYORI FEATURED BANNER === */}
-                    {featuredChar && !searchQuery && (
-                        <NewCharacterAvailable 
-                            character={featuredChar} 
-                            onSelect={onSelectCharacter}
-                            onShowDetails={() => setShowCharacterBook(true)} 
-                        />
+                    {/* === FEATURED DYNAMIC CAROUSEL (INFINITE LOOP) === */}
+                    {!searchQuery && bannerCharacters.length > 0 && (
+                        <div 
+                            className="relative group/carousel mb-10"
+                            onMouseEnter={stopAutoPlay}
+                            onMouseLeave={handleMouseLeave}
+                            onTouchStart={(e) => handleStart(e.touches[0].clientX)}
+                            onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+                            onTouchEnd={handleEnd}
+                            onMouseDown={(e) => handleStart(e.clientX)}
+                            onMouseMove={(e) => handleMove(e.clientX)}
+                            onMouseUp={handleEnd}
+                        >
+                            <div className="relative overflow-hidden rounded-[2rem]">
+                                <div 
+                                    className="flex w-full will-change-transform"
+                                    style={{ 
+                                        transform: `translateX(calc(-${currentIndex * 100}% + ${currentTranslate}px))`,
+                                        transitionDuration: isDragging ? '0ms' : (isTransitioning ? '500ms' : '0ms'),
+                                        transitionProperty: 'transform',
+                                        transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)'
+                                    }}
+                                >
+                                    {carouselSlides.map((char, index) => (
+                                        <div key={`${char.id}-${index}`} className="w-full flex-shrink-0 relative">
+                                            {/* Disable pointer events only during actual drag to allow clicks */}
+                                             <div style={{ pointerEvents: isDragging ? 'none' : 'auto' }}>
+                                                <NewCharacterAvailable 
+                                                    character={char} 
+                                                    onSelect={onSelectCharacter}
+                                                    onShowDetails={() => setShowCharacterBook(true)} 
+                                                    className="mb-0" 
+                                                />
+                                             </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Pagination Dots */}
+                                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2 z-20 pointer-events-none">
+                                    {bannerCharacters.map((_, idx) => (
+                                        <div 
+                                            key={idx}
+                                            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 shadow-sm ${idx === (currentIndex % length) ? 'bg-white w-4' : 'bg-white/30'}`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Carousel Arrows (Visible on Hover / Mobile) */}
+                            {length > 1 && (
+                                <>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); prevBanner(); startAutoPlay(); }}
+                                        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-black/30 hover:bg-black/60 text-white/50 hover:text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover/carousel:opacity-100 active:scale-95"
+                                    >
+                                        <ChevronLeft size={24} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); nextBanner(); startAutoPlay(); }}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-black/30 hover:bg-black/60 text-white/50 hover:text-white rounded-full backdrop-blur-md transition-all opacity-0 group-hover/carousel:opacity-100 active:scale-95"
+                                    >
+                                        <ChevronRight size={24} />
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     )}
 
                     <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
@@ -294,11 +491,11 @@ const Hub: React.FC<HubProps> = ({
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-6">
                          {filteredChars.map((char) => (
                             <CharacterCard 
-                               key={char.id} 
-                               char={char} 
-                               session={sessions[char.id]}
-                               onSelect={onSelectCharacter}
-                               onEdit={onEditCharacter}
+                                key={char.id} 
+                                char={char} 
+                                session={sessions[char.id]}
+                                onSelect={onSelectCharacter}
+                                onEdit={onEditCharacter}
                             />
                          ))}
                     </div>

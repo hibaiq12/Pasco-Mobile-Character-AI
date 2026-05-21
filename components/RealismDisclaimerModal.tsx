@@ -1,18 +1,34 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Brain, ShieldAlert, Check, EyeOff, Activity, Lock } from 'lucide-react';
+import { getSettings } from '../services/storageService';
 
 interface RealismDisclaimerModalProps {
     onAgree: () => void;
     onCancel: () => void;
+    isPreview?: boolean;
 }
 
-export const RealismDisclaimerModal: React.FC<RealismDisclaimerModalProps> = ({ onAgree, onCancel }) => {
+// Base64 Noise Texture for Reliability
+const BASE64_NOISE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCI+PGRlZnM+PGZpbHRlciBpZD0iYSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIwLjE1Ii8+PC9zdmc+";
+
+export const RealismDisclaimerModal: React.FC<RealismDisclaimerModalProps> = ({ onAgree, onCancel, isPreview = false }) => {
     const [countdown, setCountdown] = useState(5);
     const [canProceed, setCanProceed] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
 
     useEffect(() => {
+        const settings = getSettings();
+        
+        // Fast skip if setting is enabled OR preview mode
+        if (settings.disableDisclaimerCountdown || isPreview) {
+            setTimeout(() => {
+                setCountdown(0);
+                setCanProceed(true);
+            }, 0);
+            return;
+        }
+
         const timer = setInterval(() => {
             setCountdown((prev) => {
                 if (prev <= 1) {
@@ -24,7 +40,7 @@ export const RealismDisclaimerModal: React.FC<RealismDisclaimerModalProps> = ({ 
             });
         }, 1000);
         return () => clearInterval(timer);
-    }, []);
+    }, [isPreview]);
 
     const handleAgree = () => {
         if (!canProceed) return;
@@ -38,11 +54,11 @@ export const RealismDisclaimerModal: React.FC<RealismDisclaimerModalProps> = ({ 
     };
 
     return (
-        <div className={`fixed inset-0 z-[100] bg-black/98 flex items-center justify-center p-4 transition-opacity duration-500 ${isClosing ? 'opacity-0' : 'opacity-100 animate-in fade-in'}`}>
+        <div className={`${isPreview ? 'absolute inset-0 z-10' : 'fixed inset-0 z-[100]'} bg-black/98 flex items-center justify-center p-4 transition-opacity duration-500 ${isClosing ? 'opacity-0' : 'opacity-100 animate-in fade-in'}`}>
             
             {/* Ambient Background Effects */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/10 via-black to-black pointer-events-none animate-pulse-slow" />
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.07] pointer-events-none mix-blend-overlay"></div>
+            <div className="absolute inset-0 opacity-[0.07] pointer-events-none mix-blend-overlay" style={{ backgroundImage: `url("${BASE64_NOISE}")` }}></div>
             
             {/* Scanline Effect */}
             <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 bg-[length:100%_4px,3px_100%]"></div>

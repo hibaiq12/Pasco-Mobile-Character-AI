@@ -11,10 +11,12 @@ import { ProfileSettings } from '../MainMenu/Settings/components/ProfileSettings
 import { AISettings } from '../MainMenu/Settings/components/AISettings';
 import { DataSettings } from '../MainMenu/Settings/components/DataSettings';
 import { LanguageSettings } from '../MainMenu/Settings/components/LanguageSettings';
+import { AppearanceSettings } from '../MainMenu/Settings/components/Appearance/index';
 import { DevSettings } from '../MainMenu/Settings/components/DevSettings';
 
 interface SettingsPageProps {
     onSettingsChange?: () => void;
+    onNavigateToPreview?: () => void; 
 }
 
 interface PendingImportData {
@@ -22,15 +24,16 @@ interface PendingImportData {
     sessions: Record<string, ChatSession>;
     history: SavedStory[];
     settings?: AppSettings;
-    smartphone?: Record<string, any>;
+    smartphone?: Record<string, Record<string, unknown>>;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange, onNavigateToPreview }) => {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   
   // Persist active tab state
-  const [activeTab, setActiveTab] = useState<'profile' | 'ai' | 'data' | 'dev' | 'language'>(() => {
-      return (localStorage.getItem('pasco_settings_active_tab') as any) || 'profile';
+  const [activeTab, setActiveTab] = useState<'profile' | 'ai' | 'data' | 'appearance' | 'language' | 'dev'>(() => {
+      const stored = localStorage.getItem('pasco_settings_active_tab');
+      return (stored as 'profile' | 'ai' | 'data' | 'appearance' | 'language' | 'dev') || 'profile';
   });
 
   // Export Filename State
@@ -171,7 +174,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
       window.location.reload();
   };
 
-  const TabButton = ({ id, icon, label }: { id: any, icon: React.ReactNode, label: string }) => (
+  const TabButton = ({ id, icon, label }: { id: 'profile' | 'ai' | 'data' | 'appearance' | 'language' | 'dev', icon: React.ReactNode, label: string }) => (
       <button 
         onClick={() => setActiveTab(id)}
         className={`
@@ -199,7 +202,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-violet-900/5 rounded-full blur-[150px] pointer-events-none" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-900/5 rounded-full blur-[150px] pointer-events-none" />
 
-        <div className="flex-1 overflow-y-auto relative z-10 p-6 sm:p-12 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto relative z-10 p-6 pb-32 sm:p-12 sm:pb-12 custom-scrollbar">
             <div className="max-w-6xl mx-auto">
                 
                 {/* HEADER SECTION */}
@@ -215,11 +218,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                         <TabButton id="profile" icon={<User size={18}/>} label={t('set.nav.profile')} />
                         <TabButton id="ai" icon={<Cpu size={18}/>} label={t('set.nav.ai')} />
                         <TabButton id="data" icon={<Database size={18}/>} label={t('set.nav.data')} />
+                        <TabButton id="appearance" icon={<LayoutGrid size={18}/>} label={t('set.nav.appearance') || 'Tampilan'} />
                         <TabButton id="language" icon={<Globe size={18}/>} label={t('set.nav.language')} />
+
+                        <div className="my-8 px-4 h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
                         
-                        <div className="h-4"></div> {/* Spacer */}
-                        
-                        <TabButton id="dev" icon={<Terminal size={18}/>} label={t('set.nav.dev')} />
+                        <TabButton id="dev" icon={<Terminal size={18} className="text-amber-500" />} label="Developer Settings" />
                     </div>
 
                     {/* MAIN CONTENT AREA */}
@@ -242,8 +246,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                                     <input type="file" ref={fileInputRef} onChange={handleFileRead} className="hidden" accept=".json,.psc" />
                                 </>
                             )}
+                            {activeTab === 'appearance' && <AppearanceSettings settings={settings} setSettings={setSettings} onNavigateToPreview={onNavigateToPreview} />}
                             {activeTab === 'language' && <LanguageSettings settings={settings} setSettings={setSettings} />}
-                            {activeTab === 'dev' && <DevSettings settings={settings} setSettings={setSettings} />}
+                            {activeTab === 'dev' && <DevSettings settings={settings} setSettings={setSettings} onNavigateToPreview={onNavigateToPreview} />}
                         </div>
 
                         {/* Save Button (Floating bottom right of content) */}
@@ -268,9 +273,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
             </div>
         </div>
 
-        {/* --- GLOBAL MODALS --- */}
-
-        {/* FACTORY RESET CONFIRMATION MODAL */}
+        {/* ... (Sisanya tetap sama) */}
         {showNukeModal && (
           <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-zinc-950 border border-red-500/30 p-8 rounded-3xl w-[400px] shadow-[0_0_50px_rgba(220,38,38,0.2)] relative scale-100 flex flex-col items-center">
@@ -301,7 +304,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
           </div>
       )}
 
-      {/* SYSTEM PURGE LOADING SCREEN */}
       {isResetting && (
             <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-8 animate-fade-in">
                 <div className="w-full max-w-md space-y-6 text-center">
@@ -315,10 +317,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                     </div>
 
                     <div className="space-y-2 text-left bg-zinc-900/50 p-4 rounded-xl border border-red-500/10 font-mono text-xs text-red-300/70">
-                        <p>> Initializing Wipe Protocol...</p>
-                        <p className={resetProgress > 20 ? 'opacity-100' : 'opacity-0'}>> Unlinking Neural Pathways...</p>
-                        <p className={resetProgress > 50 ? 'opacity-100' : 'opacity-0'}>> Formatting Local Storage...</p>
-                        <p className={resetProgress > 80 ? 'opacity-100' : 'opacity-0'}>> Clearing Cache...</p>
+                        <p>&gt; Initializing Wipe Protocol...</p>
+                        <p className={resetProgress > 20 ? 'opacity-100' : 'opacity-0'}>&gt; Unlinking Neural Pathways...</p>
+                        <p className={resetProgress > 50 ? 'opacity-100' : 'opacity-0'}>&gt; Formatting Local Storage...</p>
+                        <p className={resetProgress > 80 ? 'opacity-100' : 'opacity-0'}>&gt; Clearing Cache...</p>
                     </div>
 
                     <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
@@ -333,11 +335,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
             </div>
       )}
 
-      {/* IMPORT TYPE SELECTION MODAL */}
       {showImportTypeModal && (
           <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-zinc-950 border border-violet-500/20 rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col">
-                  {/* Decorative Header */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-cyan-500 to-violet-500" />
                   
                   <div className="p-8">
@@ -352,7 +352,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                       </div>
 
                       <div className="space-y-3">
-                          {/* Option 1: Restore Chat */}
                           <button 
                               onClick={openChatSelection}
                               className="w-full flex items-center p-4 bg-zinc-900/50 hover:bg-violet-900/10 border border-zinc-800 hover:border-violet-500/50 rounded-2xl group transition-all"
@@ -366,7 +365,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                               </div>
                           </button>
 
-                          {/* Option 2: Restore Characters */}
                           <button 
                               onClick={importRestoreCharacters}
                               className="w-full flex items-center p-4 bg-zinc-900/50 hover:bg-cyan-900/10 border border-zinc-800 hover:border-cyan-500/50 rounded-2xl group transition-all"
@@ -380,7 +378,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                               </div>
                           </button>
 
-                          {/* Option 3: Restore All */}
                           <button 
                               onClick={importRestoreAll}
                               className="w-full flex items-center p-4 bg-zinc-900/50 hover:bg-emerald-900/10 border border-zinc-800 hover:border-emerald-500/50 rounded-2xl group transition-all"
@@ -399,12 +396,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
           </div>
       )}
 
-      {/* CHAT SELECTION MODAL */}
       {showChatSelectModal && pendingImport && (
           <div className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[85vh]">
-                  
-                  {/* Header */}
                   <div className="p-6 border-b border-white/5 flex justify-between items-center">
                       <div>
                           <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -416,21 +410,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                       <button onClick={() => { setShowChatSelectModal(false); setPendingImport(null); }} className="text-zinc-500 hover:text-white"><X size={20} /></button>
                   </div>
 
-                  {/* List Content */}
                   <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/20">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {(() => {
-                              // Logic: Include Characters AND Group Sessions
                               const uniqueItems: { id: string, name: string, avatar?: string, isGroup: boolean }[] = [];
-                              
-                              // 1. Characters - SAFER MAPPING
                               pendingImport.characters.forEach(c => {
                                   if (c && c.id) {
                                       uniqueItems.push({ id: c.id, name: c.name || 'Unknown', avatar: c.avatar, isGroup: false });
                                   }
                               });
-
-                              // 2. Groups (Sessions starting with 'group_')
                               if (pendingImport.sessions) {
                                   Object.keys(pendingImport.sessions).forEach(key => {
                                       if (key.startsWith('group_')) {
@@ -440,11 +428,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                               }
 
                               return uniqueItems.map(item => {
-                                  // NEW LOGIC: Check detection in IMPORT FILE (pendingImport), not Local Storage
                                   const importSession = pendingImport.sessions ? pendingImport.sessions[item.id] : null;
                                   const hasImportSession = importSession && importSession.messages && importSession.messages.length > 0;
                                   const hasImportHistory = pendingImport.history ? pendingImport.history.some(h => h.characterId === item.id) : false;
-                                  
                                   const isDetected = hasImportSession || hasImportHistory;
                                   const isSelected = selectedImportIds.includes(item.id);
 
@@ -459,7 +445,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                                                   : 'bg-zinc-900/40 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900'}
                                           `}
                                       >
-                                          {/* Avatar */}
                                           {item.isGroup ? (
                                               <div className="w-10 h-10 rounded-full bg-blue-900/30 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
                                                   <Users size={18} />
@@ -476,14 +461,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                                                           <CheckCircle size={8} /> {t('import.tag.detected')}
                                                       </span>
                                                   ) : (
-                                                      <span className="flex items-center gap-1 text-[9px] bg-red-900/20 text-red-400 px-1.5 py-0.5 rounded border border-red-900/30 font-bold uppercase tracking-wider">
+                                                      <span className="flex items-center gap-1 text-[9px] bg-red-900/20 text-red-400 px-1.5 py-0.5 rounded border border-red-300/30 font-bold uppercase tracking-wider">
                                                           <XCircle size={8} /> {t('import.tag.undetected')}
                                                       </span>
                                                   )}
                                               </div>
                                           </div>
-                                          
-                                          {/* Subtle Selection Indicator (Background Glow instead of Checkbox) */}
                                           {isSelected && (
                                               <div className="absolute inset-0 bg-violet-500/5 pointer-events-none" />
                                           )}
@@ -494,18 +477,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                       </div>
                   </div>
 
-                  {/* Footer Actions */}
                   <div className="p-6 border-t border-white/5 bg-zinc-900/50 flex justify-between items-center">
                       <div className="text-xs text-zinc-500">
                           {selectedImportIds.length} threads selected
                       </div>
                       <div className="flex gap-3">
-                          <button 
-                              onClick={() => setSelectedImportIds([])}
-                              className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
-                          >
-                              Clear
-                          </button>
+                          <button onClick={() => setSelectedImportIds([])} className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors">Clear</button>
                           <button 
                               onClick={executeChatRestore}
                               disabled={selectedImportIds.length === 0}

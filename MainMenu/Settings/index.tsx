@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { getSettings, saveSettings, clearAllData, exportData, importData, saveCharacter, saveSession, getSavedStories, restoreSystemData } from '../../services/storageService';
 import { saveSmartphoneData } from '../../services/smartphoneStorage';
@@ -10,10 +11,11 @@ import { ProfileSettings } from './components/ProfileSettings';
 import { AISettings } from './components/AISettings';
 import { DataSettings } from './components/DataSettings';
 import { LanguageSettings } from './components/LanguageSettings';
-import { DevSettings } from './components/DevSettings';
+import { AppearanceSettings } from './components/Appearance/index';
 
 interface SettingsPageProps {
     onSettingsChange?: () => void;
+    onNavigateToPreview?: () => void;
 }
 
 interface PendingImportData {
@@ -21,15 +23,15 @@ interface PendingImportData {
     sessions: Record<string, ChatSession>;
     history: SavedStory[];
     settings?: AppSettings;
-    smartphone?: Record<string, any>;
+    smartphone?: Record<string, unknown>;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange, onNavigateToPreview }) => {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   
   // Persist active tab state
-  const [activeTab, setActiveTab] = useState<'profile' | 'ai' | 'data' | 'dev' | 'language'>(() => {
-      return (localStorage.getItem('pasco_settings_active_tab') as any) || 'profile';
+  const [activeTab, setActiveTab] = useState<'profile' | 'ai' | 'data' | 'appearance' | 'language'>(() => {
+      return (localStorage.getItem('pasco_settings_active_tab') as 'profile' | 'ai' | 'data' | 'appearance' | 'language') || 'profile';
   });
 
   // Export Filename State
@@ -170,7 +172,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
       window.location.reload();
   };
 
-  const TabButton = ({ id, icon, label }: { id: any, icon: React.ReactNode, label: string }) => (
+  const TabButton = ({ id, icon, label }: { id: 'profile' | 'ai' | 'data' | 'dev' | 'language', icon: React.ReactNode, label: string }) => (
       <button 
         onClick={() => setActiveTab(id)}
         className={`
@@ -206,8 +208,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                         <TabButton id="profile" icon={<User size={20}/>} label={t('set.nav.profile')} />
                         <TabButton id="ai" icon={<Cpu size={20}/>} label={t('set.nav.ai')} />
                         <TabButton id="data" icon={<Database size={20}/>} label={t('set.nav.data')} />
+                        <TabButton id="appearance" icon={<Terminal size={20}/>} label={t('set.nav.appearance') || 'Tampilan'} />
                         <TabButton id="language" icon={<Globe size={20}/>} label={t('set.nav.language')} />
-                        <TabButton id="dev" icon={<Terminal size={20}/>} label={t('set.nav.dev')} />
                     </div>
 
                     {/* Main Content Panel */}
@@ -232,8 +234,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                                     <input type="file" ref={fileInputRef} onChange={handleFileRead} className="hidden" accept=".json,.psc" />
                                 </>
                             )}
+                            {activeTab === 'appearance' && (
+                                <AppearanceSettings 
+                                    settings={settings} 
+                                    setSettings={setSettings} 
+                                    onNavigateToPreview={onNavigateToPreview}
+                                />
+                            )}
                             {activeTab === 'language' && <LanguageSettings settings={settings} setSettings={setSettings} />}
-                            {activeTab === 'dev' && <DevSettings settings={settings} setSettings={setSettings} />}
                         </div>
 
                         {activeTab !== 'data' && (
@@ -302,10 +310,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsChange }) 
                     </div>
 
                     <div className="space-y-2 text-left bg-zinc-900/50 p-4 rounded-xl border border-red-500/10 font-mono text-xs text-red-300/70">
-                        <p>> Initializing Wipe Protocol...</p>
-                        <p className={resetProgress > 20 ? 'opacity-100' : 'opacity-0'}>> Unlinking Neural Pathways...</p>
-                        <p className={resetProgress > 50 ? 'opacity-100' : 'opacity-0'}>> Formatting Local Storage...</p>
-                        <p className={resetProgress > 80 ? 'opacity-100' : 'opacity-0'}>> Clearing Cache...</p>
+                        <p>&gt; Initializing Wipe Protocol...</p>
+                        <p className={resetProgress > 20 ? 'opacity-100' : 'opacity-0'}>&gt; Unlinking Neural Pathways...</p>
+                        <p className={resetProgress > 50 ? 'opacity-100' : 'opacity-0'}>&gt; Formatting Local Storage...</p>
+                        <p className={resetProgress > 80 ? 'opacity-100' : 'opacity-0'}>&gt; Clearing Cache...</p>
                     </div>
 
                     <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">

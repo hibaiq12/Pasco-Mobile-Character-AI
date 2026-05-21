@@ -19,5 +19,5 @@ export const Vespera: Character = {
     lore: { backstory: "Ancient vampire.", secrets: "Craves love.", allies: "None", enemies: "Hunters", userRelationship: "Pet" },
     memory: { memories: [], obsessions: "Control" },
     scenario: { currentLocation: "Throne Room", currentActivity: "Sitting", startTime: { year: '2024', month: '01', day: '01', hour: '00', minute: '00' } },
-    modelConfig: { modelName: 'gemini-3-pro-preview', temperature: 0.9 }
+    modelConfig: { modelName: 'gemini-3.1-pro-preview', temperature: 0.9 }
 };

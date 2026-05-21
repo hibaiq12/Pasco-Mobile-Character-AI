@@ -19,5 +19,5 @@ export const Selene: Character = {
     lore: { backstory: "Top manager.", secrets: "Hates job.", allies: "None", enemies: "Competitors", userRelationship: "Subordinate" },
     memory: { memories: [], obsessions: "Efficiency" },
     scenario: { currentLocation: "Office", currentActivity: "Working", startTime: { year: '2024', month: '01', day: '01', hour: '09', minute: '00' } },
-    modelConfig: { modelName: 'gemini-2.5-flash', temperature: 0.7 }
+    modelConfig: { modelName: 'gemini-3.1-flash-lite-preview', temperature: 0.7 }
 };

@@ -15,6 +15,6 @@ export const SCENARIO_PROMPT = `
 ### SCENARIO CONTEXT
 *   **Time:** 16:00 (Afternoon, sunny).
 *   **Location:** A park bench or swing set.
-*   **Situation:** Hikaru is eating an ice cream cone. He has a bit of ice cream on his cheek. He spots the User walking by looking tired.
+*   **Situation:** Hikaru is eating an ice cream cone. She has a bit of ice cream on her cheek. She spots the User walking by looking tired.
 *   **Goal:** Cheer up the User.
 `;

@@ -2,6 +2,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { getSettings } from "../../../storageService";
 import { getLanguageName, wait } from "./Constants";
+import { generateOpenRouterResponse } from "../../../Openrouter";
+import { generateOllamaResponse } from "../../../Ollama";
+import { generateKoboldResponse } from "../../../Kobold";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -19,20 +22,11 @@ export const generateNPCResponse = async (
         return "Preview Mode: NPC offline.";
     }
     const chatLangName = getLanguageName(settings.chatLanguage || 'id');
+    const targetModel = settings.defaultModel || 'gemini-3.1-flash-lite-preview';
     
-    // --- MINI NEURAL FORGE PROTOCOL ---
-    let roleInstructions = "";
-    if (npcDescription && npcDescription.trim().length > 0) {
-        roleInstructions = `
-### MINI NEURAL FORGE: CONTACT PERSONA
-**IDENTITY:** "${npcName}"
-**CORE TRAITS & INSTRUCTIONS:**
-${npcDescription}
-**DIRECTIVE:** Adhere to the tone/style above. If 'Gen Z', use slang. If 'Formal', be formal.
-`;
-    } else {
-        roleInstructions = `**YOUR ROLE:**\nAnalyze your name ("${npcName}") and User's context to determine persona.`;
-    }
+    const roleInstructions = (npcDescription && npcDescription.trim().length > 0) 
+        ? `\n### MINI NEURAL FORGE: CONTACT PERSONA\n**IDENTITY:** "${npcName}"\n**CORE TRAITS & INSTRUCTIONS:**\n${npcDescription}\n**DIRECTIVE:** Adhere to the tone/style above. If 'Gen Z', use slang. If 'Formal', be formal.\n`
+        : `**YOUR ROLE:**\nAnalyze your name ("${npcName}") and User's context to determine persona.`;
 
     const systemPrompt = `
 SYSTEM: You are simulating a smartphone text reply from "${npcName}".
@@ -49,9 +43,61 @@ ${roleInstructions}
 3. **LENGTH:** 1-3 sentences maximum.
 `;
 
+    // --- HANDLE DIFFERENT MODELS ---
+    
+    // 1. OPENROUTER
+    if (targetModel === 'openrouter-api') {
+        if (!settings.openRouterKey) return "API Key Missing.";
+        try {
+            return await generateOpenRouterResponse(
+                settings.openRouterKey,
+                settings.openRouterModel || "mistralai/mistral-7b-instruct:free",
+                [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }]
+            );
+        } catch (e) {
+            console.error("OpenRouter NPC Error", e);
+            return "Gangguan sinyal...";
+        }
+    }
+
+    // 2. OLLAMA API
+    if (targetModel === 'ollama-api') {
+        if (!settings.ollamaUrl) return "Ollama URL Missing.";
+        try {
+            return await generateOllamaResponse(
+                settings.ollamaModel || 'llama3.2',
+                [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage }
+                ]
+            );
+        } catch (e) {
+            console.error("Ollama NPC Error", e);
+            return "Offline...";
+        }
+    }
+
+    // 3. KOBOLD AI API
+    if (targetModel === 'kobold-api') {
+        if (!settings.koboldUrl) return "Kobold URL Missing.";
+        try {
+            return await generateKoboldResponse(
+                settings.koboldModel || 'koboldcpp',
+                [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage }
+                ]
+            );
+        } catch (e) {
+            console.error("Kobold NPC Error", e);
+            return "Connection Timed Out...";
+        }
+    }
+
+    // 3. GEMINI MODELS
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: targetModel, // Use global setting
             contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
             config: { temperature: 0.85, maxOutputTokens: 1500 }
         });

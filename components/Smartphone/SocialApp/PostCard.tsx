@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { SocialPost } from '../../../services/SmartphoneSocial';
-import { Heart, MessageCircle, Share2, Repeat, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Share, Repeat2, MoreHorizontal, Smartphone, Mail, BarChart2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface PostCardProps {
     post: SocialPost;
@@ -9,83 +10,198 @@ interface PostCardProps {
     onCommentClick: (post: SocialPost) => void;
     currentUserId: string;
     virtualTime: number;
+    onShowToCharacter?: (postContent: string) => void;
+    onShareToChat?: (text: string) => void;
+    onUserClick?: (authorId: string) => void;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onCommentClick, currentUserId, virtualTime }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onCommentClick, currentUserId, virtualTime, onShowToCharacter, onShareToChat, onUserClick }) => {
+    const [showShareMenu, setShowShareMenu] = useState(false);
     
     const formatTime = (timestamp: number) => {
         const diff = virtualTime - timestamp;
-        const minutes = Math.floor(diff / 60000);
-        if (minutes < 1) return 'Just now';
+        const seconds = Math.floor(diff / 1000);
+        if (seconds < 60) return `${Math.max(1, seconds)}s`;
+        const minutes = Math.floor(seconds / 60);
         if (minutes < 60) return `${minutes}m`;
         const hours = Math.floor(minutes / 60);
         if (hours < 24) return `${hours}h`;
-        return `${Math.floor(hours / 24)}d`;
+        const days = Math.floor(hours / 24);
+        if (days < 7) return `${days}d`;
+        
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
+    const handleAvatarClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onUserClick) onUserClick(post.authorId);
+    };
+
+    const isUser = post.authorId === 'user';
+
     return (
-        <div className="border-b border-white/5 py-3 px-4 hover:bg-white/[0.02] transition-colors">
+        <div 
+            className="border-b border-[#2f3336] py-3 px-4 hover:bg-white/[0.03] transition-colors cursor-pointer bg-black active:bg-white/[0.05]"
+            onClick={() => onCommentClick(post)}
+        >
             <div className="flex gap-3">
-                <img src={post.authorAvatar} className="w-10 h-10 rounded-full object-cover shrink-0 bg-zinc-800 border border-zinc-700" />
+                {/* Avatar */}
+                <div className="shrink-0">
+                    <img 
+                        src={post.authorAvatar} 
+                        onClick={handleAvatarClick}
+                        className="w-10 h-10 rounded-full object-cover bg-zinc-900 cursor-pointer hover:brightness-90 transition-all" 
+                    />
+                </div>
+                
                 <div className="flex-1 min-w-0">
-                    {/* Post Header */}
+                    {/* Header */}
                     <div className="flex justify-between items-start">
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-sm text-zinc-200">{post.authorName}</span>
-                                <span className="text-[10px] text-zinc-500">· {formatTime(post.timestamp)}</span>
-                            </div>
-                            <span className="text-xs text-zinc-500">{post.authorHandle}</span>
+                        <div className="flex items-center gap-1 min-w-0 overflow-hidden text-[15px]">
+                            <span 
+                                onClick={handleAvatarClick}
+                                className="font-bold text-white cursor-pointer hover:underline truncate"
+                            >
+                                {post.authorName}
+                            </span>
+                            <span className="text-[#71767b] truncate">{post.authorHandle}</span>
+                            <span className="text-[#71767b] shrink-0">·</span>
+                            <span className="text-[#71767b] shrink-0 hover:underline cursor-pointer">{formatTime(post.timestamp)}</span>
                         </div>
-                        <button className="text-zinc-500">
+                        <button className="text-[#71767b] hover:text-[#1d9bf0] p-1.5 -mr-2 rounded-full hover:bg-[#1d9bf0]/10 transition-all">
                             <MoreHorizontal size={16} />
                         </button>
                     </div>
 
-                    {/* Post Content */}
-                    <p className="text-sm text-zinc-300 mt-1 leading-relaxed whitespace-pre-wrap">
+                    {/* Content */}
+                    <p className="text-[15px] text-[#e7e9ea] leading-normal whitespace-pre-wrap mt-0.5 break-words">
                         {post.content}
                     </p>
 
-                    {/* Post Image (If Any) */}
+                    {/* Image */}
                     {post.image && (
-                        <div className="mt-3 rounded-xl overflow-hidden border border-white/10 relative group">
-                            <img src={post.image} className="w-full h-auto object-cover max-h-60" />
-                            {/* AI Generated Tag */}
-                            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-[8px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                AI Generated
-                            </div>
+                        <div className="mt-3 rounded-2xl overflow-hidden border border-[#2f3336] bg-zinc-900/50">
+                            <img 
+                                src={post.image} 
+                                className="w-full h-auto object-cover max-h-[512px] hover:brightness-95 transition-all" 
+                                loading="lazy"
+                            />
                         </div>
                     )}
 
-                    {/* Action Buttons */}
-                    <div className="flex justify-between items-center mt-3 pr-4">
+                    {/* Tags */}
+                    {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                            {post.tags.map(tag => (
+                                <span key={tag} className="text-[#1d9bf0] text-[14px] hover:underline cursor-pointer">
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex justify-between items-center mt-3 max-w-sm ml-[-8px]">
+                        {/* Reply */}
                         <button 
-                            className={`group flex items-center gap-1.5 transition-colors ${post.isLiked ? 'text-pink-500' : 'text-zinc-500 hover:text-pink-500'}`} 
-                            onClick={() => onLike(post.id)}
+                            className="group flex items-center gap-1 text-[#71767b] transition-colors"
+                            onClick={(e) => { e.stopPropagation(); onCommentClick(post); }}
                         >
-                            <Heart size={18} className={post.isLiked ? "fill-pink-500" : "group-hover:scale-110 transition-transform"} />
-                            <span className="text-xs">{post.likes}</span>
+                            <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 group-hover:text-[#1d9bf0] transition-all">
+                                <MessageCircle size={18} />
+                            </div>
+                            <span className="text-[13px] group-hover:text-[#1d9bf0]">
+                                {post.comments.length > 0 ? post.comments.length : ''}
+                            </span>
                         </button>
 
+                        {/* Repost */}
+                        <button className="group flex items-center gap-1 text-[#71767b] transition-colors" onClick={(e) => e.stopPropagation()}>
+                            <div className="p-2 rounded-full group-hover:bg-[#00ba7c]/10 group-hover:text-[#00ba7c] transition-all">
+                                <Repeat2 size={18} />
+                            </div>
+                            <span className="text-[13px] group-hover:text-[#00ba7c]"></span>
+                        </button>
+
+                        {/* Like */}
                         <button 
-                            className="group flex items-center gap-1.5 text-zinc-500 hover:text-blue-400 transition-colors"
-                            onClick={() => onCommentClick(post)}
+                            className={`group flex items-center gap-1 transition-colors ${post.isLiked ? 'text-[#f91880]' : 'text-[#71767b]'}`} 
+                            onClick={(e) => { e.stopPropagation(); onLike(post.id); }}
                         >
-                            <MessageCircle size={18} className="group-hover:scale-110 transition-transform" />
-                            <span className="text-xs">{post.comments.length}</span>
+                            <div className={`p-2 rounded-full transition-all ${post.isLiked ? '' : 'group-hover:bg-[#f91880]/10 group-hover:text-[#f91880]'}`}>
+                                <motion.div animate={post.isLiked ? { scale: [1, 1.4, 1] } : {}}>
+                                    <Heart size={18} className={post.isLiked ? "fill-[#f91880]" : ""} />
+                                </motion.div>
+                            </div>
+                            <span className={`text-[13px] ${post.isLiked ? 'text-[#f91880]' : 'group-hover:text-[#f91880]'}`}>
+                                {post.likes > 0 ? post.likes : ''}
+                            </span>
                         </button>
 
-                        <button className="group flex items-center gap-1.5 text-zinc-500 hover:text-green-400 transition-colors">
-                            <Repeat size={18} className="group-hover:rotate-180 transition-transform duration-500" />
+                        {/* Analytics (Visual Only) */}
+                        <button className="group flex items-center gap-1 text-[#71767b] transition-colors" onClick={(e) => e.stopPropagation()}>
+                            <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 group-hover:text-[#1d9bf0] transition-all">
+                                <BarChart2 size={18} />
+                            </div>
                         </button>
 
-                        <button className="text-zinc-500 hover:text-cyan-400 transition-colors">
-                            <Share2 size={18} />
-                        </button>
+                        {/* Share */}
+                        <div className="relative">
+                            <button 
+                                className="group flex items-center gap-1 text-[#71767b] transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setShowShareMenu(!showShareMenu); }}
+                            >
+                                <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 group-hover:text-[#1d9bf0] transition-all">
+                                    <Share size={18} />
+                                </div>
+                            </button>
+                            
+                            <AnimatePresence>
+                                {showShareMenu && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowShareMenu(false); }}></div>
+                                        <motion.div 
+                                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                            className="absolute bottom-full right-0 mb-2 w-56 bg-black border border-[#2f3336] rounded-xl shadow-[0_8px_24px_rgba(255,255,255,0.1)] z-50 overflow-hidden py-1"
+                                        >
+                                            {onShowToCharacter && (
+                                                <button 
+                                                    className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/[0.03] flex items-center gap-3 transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onShowToCharacter(`Memperlihatkan tweet dari ${post.authorName}:\n"${post.content}"`);
+                                                        setShowShareMenu(false);
+                                                    }}
+                                                >
+                                                    <Smartphone size={18} className="text-[#1d9bf0]" />
+                                                    Tunjukkan ke Karakter
+                                                </button>
+                                            )}
+                                            {onShareToChat && (
+                                                <button 
+                                                    className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/[0.03] flex items-center gap-3 transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onShareToChat(`Lihat tweet dari ${post.authorName}:\n"${post.content}"\n\nLink: https://connected.app/p/${post.id}`);
+                                                        setShowShareMenu(false);
+                                                    }}
+                                                >
+                                                    <Mail size={18} className="text-[#1d9bf0]" />
+                                                    Share via Direct Message
+                                                </button>
+                                            )}
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+

@@ -10,35 +10,35 @@ interface CharacterBookProps {
   onStartChat: () => void;
 }
 
+// Component: Stat Bar
+const StatBar = ({ label, value, color = "bg-violet-500" }: { label: string, value: number, color?: string }) => (
+  <div className="mb-4 group">
+    <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-500 mb-1.5 tracking-wider group-hover:text-zinc-300 transition-colors">
+      <span>{label}</span>
+      <span>{value}%</span>
+    </div>
+    <div className="h-1.5 w-full bg-zinc-800/50 rounded-full overflow-hidden border border-white/5">
+      <div className={`h-full ${color} shadow-[0_0_10px_currentColor] transition-all duration-1000 ease-out`} style={{ width: `${value}%` }}></div>
+    </div>
+  </div>
+);
+
+// Component: Info Tag
+const InfoTag = ({ icon: Icon, label, value }: any) => (
+  <div className="bg-zinc-900/40 border border-white/5 p-3 rounded-xl flex items-start gap-3 hover:bg-zinc-800/60 hover:border-white/10 transition-all group">
+      <div className="p-2 bg-zinc-800 rounded-lg text-zinc-400 group-hover:text-white group-hover:bg-zinc-700 transition-colors shrink-0">
+          <Icon size={16} />
+      </div>
+      <div>
+          <span className="text-[9px] font-bold text-zinc-500 uppercase block mb-0.5 tracking-wide">{label}</span>
+          <span className="text-xs text-zinc-200 font-medium leading-tight block">{value || 'Unknown'}</span>
+      </div>
+  </div>
+);
+
 export const CharacterBook: React.FC<CharacterBookProps> = ({ character, onClose, onStartChat }) => {
   const [activeTab, setActiveTab] = useState<'identity' | 'psyche' | 'lore'>('identity');
   const isHiyori = character.id === 'char-hiyori';
-
-  // Component: Stat Bar
-  const StatBar = ({ label, value, color = "bg-violet-500" }: { label: string, value: number, color?: string }) => (
-    <div className="mb-4 group">
-      <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-500 mb-1.5 tracking-wider group-hover:text-zinc-300 transition-colors">
-        <span>{label}</span>
-        <span>{value}%</span>
-      </div>
-      <div className="h-1.5 w-full bg-zinc-800/50 rounded-full overflow-hidden border border-white/5">
-        <div className={`h-full ${color} shadow-[0_0_10px_currentColor] transition-all duration-1000 ease-out`} style={{ width: `${value}%` }}></div>
-      </div>
-    </div>
-  );
-
-  // Component: Info Tag
-  const InfoTag = ({ icon: Icon, label, value }: any) => (
-    <div className="bg-zinc-900/40 border border-white/5 p-3 rounded-xl flex items-start gap-3 hover:bg-zinc-800/60 hover:border-white/10 transition-all group">
-        <div className="p-2 bg-zinc-800 rounded-lg text-zinc-400 group-hover:text-white group-hover:bg-zinc-700 transition-colors shrink-0">
-            <Icon size={16} />
-        </div>
-        <div>
-            <span className="text-[9px] font-bold text-zinc-500 uppercase block mb-0.5 tracking-wide">{label}</span>
-            <span className="text-xs text-zinc-200 font-medium leading-tight block">{value || 'Unknown'}</span>
-        </div>
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-[100] bg-black md:bg-black/90 md:backdrop-blur-xl overflow-y-auto custom-scrollbar animate-fade-in">

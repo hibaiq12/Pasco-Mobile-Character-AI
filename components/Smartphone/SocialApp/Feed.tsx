@@ -11,10 +11,13 @@ interface FeedProps {
     virtualTime: number;
     onLoadMore: () => void;
     isLoading: boolean;
+    onShowToCharacter?: (content: string) => void;
+    onShareToChat?: (text: string) => void;
+    onUserClick?: (authorId: string) => void;
 }
 
 export const Feed: React.FC<FeedProps> = ({ 
-    posts, onLike, onCommentClick, currentUserId, virtualTime, onLoadMore, isLoading 
+    posts, onLike, onCommentClick, currentUserId, virtualTime, onLoadMore, isLoading, onShowToCharacter, onShareToChat, onUserClick 
 }) => {
     const feedRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +54,9 @@ export const Feed: React.FC<FeedProps> = ({
                         onCommentClick={onCommentClick}
                         currentUserId={currentUserId}
                         virtualTime={virtualTime}
+                        onShowToCharacter={onShowToCharacter}
+                        onShareToChat={onShareToChat}
+                        onUserClick={onUserClick}
                     />
                 ))
             )}

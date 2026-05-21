@@ -19,7 +19,7 @@ const CAPABILITIES = {
 };
 
 const MODEL_CONFIG = { 
-    modelName: 'gemini-2.5-flash', 
+    modelName: 'gemini-3.1-flash-lite-preview', 
     temperature: 0.9 // Higher temp for more creativity/randomness
 };
 

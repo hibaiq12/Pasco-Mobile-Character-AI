@@ -1,3 +1,4 @@
+
 import { OutfitItem } from "../types";
 
 export interface ChatContextData {
@@ -18,7 +19,7 @@ export const getChatContext = (characterId: string): ChatContextData => {
             userLocation: '',
             botLocation: '',
             outfits: [],
-            responseLength: 'concise',
+            responseLength: 'long',
             timeSkip: { d: '0', h: '0', m: '0', s: '0' }
         };
     } catch (e) {
@@ -27,7 +28,7 @@ export const getChatContext = (characterId: string): ChatContextData => {
             userLocation: '',
             botLocation: '',
             outfits: [],
-            responseLength: 'concise',
+            responseLength: 'long',
             timeSkip: { d: '0', h: '0', m: '0', s: '0' }
         };
     }

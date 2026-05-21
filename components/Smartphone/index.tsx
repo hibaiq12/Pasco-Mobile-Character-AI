@@ -1,27 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { Character } from '../../types';
 import { getSmartphoneData, initSmartphoneData, CharacterPhoneData, saveSmartphoneData, Contact } from '../../services/smartphoneStorage';
 import { getChatbotData, initChatbotData } from '../../services/ChatbotSmartphoneStorage'; 
-import { Bell, Battery, Wifi, Signal, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Bell, Battery, Wifi, Signal, Loader2 } from 'lucide-react';
+import { Track } from './Spootidy/tracks';
 
-// --- USER APPS ---
-import { HomeScreen } from './HomeScreen';
-import { ChatApp as UserChatApp } from './ChatApp'; 
-import { WalletApp as UserWalletApp } from './WalletApp';
-import { JobApp as UserJobApp } from './JobApp';
-import { ShopApp as UserShopApp } from './ShopApp';
-import { CheatApp } from './CheatApp'; 
-import { SettingsApp } from './SettingsApp';
-import { InventoryApp as UserInventoryApp } from './InventoryApp'; 
-import { SocialApp } from './SocialApp/index';
+// --- LAZY-LOADED USER APPS ---
+const HomeScreen = lazy(() => import('./HomeScreen').then(m => ({ default: m.HomeScreen })));
+const UserChatApp = lazy(() => import('./ChatApp').then(m => ({ default: m.ChatApp })));
+const UserWalletApp = lazy(() => import('./WalletApp').then(m => ({ default: m.WalletApp })));
+const UserJobApp = lazy(() => import('./JobApp').then(m => ({ default: m.JobApp })));
+const UserShopApp = lazy(() => import('./ShopApp').then(m => ({ default: m.ShopApp })));
+const CheatApp = lazy(() => import('./CheatApp').then(m => ({ default: m.CheatApp })));
+const SettingsApp = lazy(() => import('./SettingsApp').then(m => ({ default: m.SettingsApp })));
+const UserInventoryApp = lazy(() => import('./InventoryApp').then(m => ({ default: m.InventoryApp })));
+const SpootidyApp = lazy(() => import('./SpootidyApp').then(m => ({ default: m.SpootidyApp })));
 
-// --- BOT APPS ---
-import { ChatbotHomeScreen } from './ChatbotSmartphone/HomeScreen';
-import { ChatApp as BotChatApp } from './ChatbotSmartphone/ChatApp';
-import { JobApp as BotJobApp } from './ChatbotSmartphone/JobApp';
-import { WalletApp as BotWalletApp } from './ChatbotSmartphone/WalletApp';
-import { ShopApp as BotShopApp } from './ChatbotSmartphone/ShopApp';
-import { InventoryApp as BotInventoryApp } from './ChatbotSmartphone/InventoryApp';
+// --- LAZY-LOADED BOT APPS ---
+const ChatbotHomeScreen = lazy(() => import('./ChatbotSmartphone/HomeScreen').then(m => ({ default: m.ChatbotHomeScreen })));
+const BotChatApp = lazy(() => import('./ChatbotSmartphone/ChatApp').then(m => ({ default: m.ChatApp })));
+const BotJobApp = lazy(() => import('./ChatbotSmartphone/JobApp').then(m => ({ default: m.JobApp })));
+const BotWalletApp = lazy(() => import('./ChatbotSmartphone/WalletApp').then(m => ({ default: m.WalletApp })));
+const BotShopApp = lazy(() => import('./ChatbotSmartphone/ShopApp').then(m => ({ default: m.ShopApp })));
+const BotInventoryApp = lazy(() => import('./ChatbotSmartphone/InventoryApp').then(m => ({ default: m.InventoryApp })));
 
 export interface PhoneNotification {
   id: string;
@@ -38,7 +40,7 @@ interface SmartphoneProps {
   participants: Character[];
   notifications: PhoneNotification[];
   onPlaceOrder: (order: { name: string, price: number, arrivalTime: number }, isBot?: boolean) => void;
-  onShowToCharacter: () => void;
+  onShowToCharacter: (content?: string) => void;
   onSendMessage: (text: string, contactId: string) => void;
   onTransfer: (amount: number, contactId: string, note: string, isBot?: boolean) => void;
   lastUpdate: number;
@@ -50,6 +52,7 @@ interface SmartphoneProps {
   onUpdateWallpaper?: (type: 'chat' | 'phone', base64: string) => void;
   onCheat?: (action: { type: string, value: any }) => void;
   forcedWeather?: { condition: string; temp: number } | null;
+  customWrapperClass?: string;
 }
 
 export const Smartphone: React.FC<SmartphoneProps> = ({
@@ -70,7 +73,8 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
   phoneWallpaper,
   onUpdateWallpaper,
   onCheat,
-  forcedWeather
+  forcedWeather,
+  customWrapperClass
 }) => {
   const [currentPage, setCurrentPage] = useState(0); 
   const [userPhoneData, setUserPhoneData] = useState<CharacterPhoneData | null>(null);
@@ -80,7 +84,66 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
   const [currentNotif, setCurrentNotif] = useState<PhoneNotification | null>(null);
   const [isClosingPhone, setIsClosingPhone] = useState(false);
   const [isClosingApp, setIsClosingApp] = useState(false);
-  const [renderPhone, setRenderPhone] = useState(show);
+  
+  // Visibility State (To keep mounted but hidden)
+  const [isPhoneVisible, setIsPhoneVisible] = useState(show);
+
+  // --- AUDIO STATE HOISTED ---
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioState, setAudioState] = useState<{
+      isPlaying: boolean;
+      currentTrack: Track | null;
+  }>({
+      isPlaying: false,
+      currentTrack: null
+  });
+
+  // Initialize Audio
+  useEffect(() => {
+      audioRef.current = new Audio();
+      
+      // Cleanup when Smartphone unmounts (User leaves ChatInterface)
+      return () => {
+          if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.src = "";
+          }
+      };
+  }, []);
+
+  const handleAudioPlay = (track: Track) => {
+      if (!audioRef.current) return;
+      
+      if (audioState.currentTrack?.id === track.id && audioState.isPlaying) {
+          // Pause if same track
+          audioRef.current.pause();
+          setAudioState(prev => ({ ...prev, isPlaying: false }));
+      } else if (audioState.currentTrack?.id === track.id && !audioState.isPlaying) {
+          // Resume if same track
+          audioRef.current.play().catch(e => console.error("Resume failed", e));
+          setAudioState(prev => ({ ...prev, isPlaying: true }));
+      } else {
+          // Play new track
+          audioRef.current.src = track.url;
+          audioRef.current.load();
+          audioRef.current.play().catch(e => console.error("Play failed", e));
+          setAudioState({ isPlaying: true, currentTrack: track });
+      }
+  };
+
+  const handleAudioPause = () => {
+      if (audioRef.current) {
+          audioRef.current.pause();
+          setAudioState(prev => ({ ...prev, isPlaying: false }));
+      }
+  };
+  
+  const handleAudioResume = () => {
+      if (audioRef.current && audioState.currentTrack) {
+          audioRef.current.play().catch(e => console.error("Resume failed", e));
+          setAudioState(prev => ({ ...prev, isPlaying: true }));
+      }
+  };
 
   const dragStartX = useRef<number | null>(null);
   const isDragging = useRef(false);
@@ -88,11 +151,14 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
 
   useEffect(() => {
       if (show) {
-          setRenderPhone(true);
-          setIsClosingPhone(false);
+          setTimeout(() => {
+              setIsPhoneVisible(true);
+              setIsClosingPhone(false);
+          }, 0);
       } else {
-          setIsClosingPhone(true);
-          const timer = setTimeout(() => setRenderPhone(false), 500); 
+          setTimeout(() => setIsClosingPhone(true), 0);
+          // Wait for animation to finish then hide via state/css, BUT DO NOT UNMOUNT
+          const timer = setTimeout(() => setIsPhoneVisible(false), 500); 
           return () => clearTimeout(timer);
       }
   }, [show]);
@@ -118,19 +184,19 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
   };
 
   useEffect(() => {
-    refreshData();
-  }, [activeCharacterId, lastUpdate, show]);
+    setTimeout(() => refreshData(), 0);
+  }, [activeCharacterId, lastUpdate, show, participants]);
 
   useEffect(() => {
       if (notifications.length > 0) {
           const latest = notifications[0];
           if (currentNotif?.id !== latest.id) {
-            setCurrentNotif(latest);
+            setTimeout(() => setCurrentNotif(latest), 0);
             const timer = setTimeout(() => setCurrentNotif(null), 3000);
             return () => clearTimeout(timer);
           }
       }
-  }, [notifications]);
+  }, [notifications, currentNotif?.id]);
 
   const handleNotifClick = (notif: PhoneNotification) => {
       if (currentPage !== 0) setCurrentPage(0);
@@ -214,7 +280,6 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
       if (onCheat) onCheat(action);
   }
 
-  // --- CALL HANDLERS: WRAPPING THE ID PASS-THROUGH ---
   const handleUserCall = (contactId: string) => {
       if (onCall) onCall(contactId);
   };
@@ -223,14 +288,28 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
       if (onVideoCall) onVideoCall(contactId);
   };
 
-  if (!renderPhone) return null;
+  // Default wrapper style
+  const wrapperClasses = customWrapperClass || `
+    fixed z-50 bottom-4 right-4 
+    md:bottom-6 md:right-6 md:w-[340px] md:h-[700px]
+    w-[92vw] h-[85vh] left-0 right-0 mx-auto md:mx-0 md:left-auto
+    max-w-[340px] max-h-[700px] perspective-1000 origin-bottom
+  `;
+
+  // --- KEY CHANGE: RENDER BUT HIDE ---
+  // If not visible (closed), apply hidden class but keep mounted for audio
+  const visibilityClass = isPhoneVisible 
+      ? (isClosingPhone ? 'animate-phone-exit' : 'animate-phone-enter')
+      : 'opacity-0 pointer-events-none translate-y-[20%] transition-none'; 
+  
+  // Note: transition-none prevents it from flying back in when mounted but hidden initially? 
+  // Actually, we use isPhoneVisible to toggle classes. When closed, it stays in DOM.
 
   return (
     <div className={`
-        fixed z-50 bottom-4 left-0 right-0 mx-auto w-[92vw] h-[85vh] 
-        md:bottom-6 md:right-6 md:left-auto md:mx-0 md:w-[340px] md:h-[700px]
-        max-w-[340px] max-h-[700px] perspective-1000 origin-bottom
-        ${isClosingPhone ? 'animate-phone-exit' : 'animate-phone-enter'}
+        ${wrapperClasses}
+        ${visibilityClass}
+        transition-all duration-500 ease-in-out gpu-accelerated
     `}>
         {/* Physical Buttons */}
         <div className="absolute -left-[3px] top-32 w-[3px] h-10 bg-zinc-600 rounded-l-md shadow-sm"></div>
@@ -313,82 +392,86 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
                             />
                         )}
                         {/* Apps Render Area (User) */}
-                        {activeApp !== 'home' && currentPage === 0 && (
-                             <div className={`absolute inset-0 z-20 bg-zinc-950 ${isClosingApp ? 'animate-app-exit' : 'animate-app-enter'}`}>
-                                {(activeApp === 'chat' || activeApp === 'chat_detail' || activeApp === 'add_contact') && (
-                                    <UserChatApp 
-                                        view={activeApp}
-                                        phoneData={userPhoneData}
-                                        activeContactId={activeContactId}
-                                        activeCharacterId={activeCharacterId}
-                                        isTyping={isTyping}
-                                        virtualTime={virtualTime}
-                                        onNavigate={setActiveApp}
-                                        onSelectContact={setActiveContactId}
-                                        onSendMessage={onSendMessage}
-                                        refreshData={refreshData}
-                                        onCall={handleUserCall} 
-                                        onVideoCall={handleUserVideoCall} 
-                                        onShowChat={onShowToCharacter} 
-                                    />
-                                )}
-                                {(activeApp === 'wallet' || activeApp === 'transfer_select' || activeApp === 'transfer_amount' || activeApp === 'contacts') && (
-                                    <UserWalletApp 
-                                        view={activeApp}
-                                        phoneData={userPhoneData}
-                                        onNavigate={setActiveApp}
-                                        onTransfer={handleTransferWrapper}
-                                        onHome={handleHome}
-                                    />
-                                )}
-                                {activeApp === 'jobs' && (
-                                    <UserJobApp 
-                                        phoneData={userPhoneData}
-                                        activeCharacterId={activeCharacterId}
-                                        onNavigate={setActiveApp}
-                                        refreshData={refreshData}
-                                    />
-                                )}
-                                {activeApp === 'shop' && (
-                                    <UserShopApp 
-                                        virtualTime={virtualTime}
-                                        onNavigate={setActiveApp}
-                                        onPlaceOrder={handlePlaceOrderWrapper}
-                                        onHome={handleHome}
-                                        phoneData={userPhoneData} 
-                                    />
-                                )}
-                                {activeApp === 'cheat' && (
-                                    <CheatApp 
-                                        onNavigate={setActiveApp}
-                                        activeCharacterId={activeCharacterId}
-                                        participants={participants}
-                                        onCheat={handleCheatWrapper}
-                                    />
-                                )}
-                                {activeApp === 'settings' && (
-                                    <SettingsApp 
-                                        onNavigate={setActiveApp}
-                                        onUpdateWallpaper={onUpdateWallpaper || (() => {})}
-                                    />
-                                )}
-                                {activeApp === 'inventory' && (
-                                    <UserInventoryApp 
-                                        phoneData={userPhoneData}
-                                        onNavigate={setActiveApp}
-                                    />
-                                )}
-                                {activeApp === 'social' && (
-                                    <SocialApp
-                                        phoneData={userPhoneData}
-                                        onNavigate={setActiveApp}
-                                        virtualTime={virtualTime}
-                                        activeCharacterId={activeCharacterId}
-                                        activeCharacter={activeCharObj}
-                                    />
-                                )}
-                             </div>
-                        )}
+                        <Suspense fallback={<div className="absolute inset-0 bg-zinc-950 flex items-center justify-center"><Loader2 className="animate-spin text-white/20" size={32} /></div>}>
+                            {activeApp !== 'home' && currentPage === 0 && (
+                                 <div className={`absolute inset-0 z-20 bg-zinc-950 ${isClosingApp ? 'animate-app-exit' : 'animate-app-enter'}`}>
+                                    {(activeApp === 'chat' || activeApp === 'chat_detail' || activeApp === 'add_contact') && (
+                                        <UserChatApp 
+                                            view={activeApp}
+                                            phoneData={userPhoneData}
+                                            activeContactId={activeContactId}
+                                            activeCharacterId={activeCharacterId}
+                                            isTyping={isTyping}
+                                            virtualTime={virtualTime}
+                                            onNavigate={setActiveApp}
+                                            onSelectContact={setActiveContactId}
+                                            onSendMessage={onSendMessage}
+                                            refreshData={refreshData}
+                                            onCall={handleUserCall} 
+                                            onVideoCall={handleUserVideoCall} 
+                                            onShowChat={onShowToCharacter} 
+                                        />
+                                    )}
+                                    {(activeApp === 'wallet' || activeApp === 'transfer_select' || activeApp === 'transfer_amount' || activeApp === 'contacts') && (
+                                        <UserWalletApp 
+                                            view={activeApp}
+                                            phoneData={userPhoneData}
+                                            onNavigate={setActiveApp}
+                                            onTransfer={handleTransferWrapper}
+                                            onHome={handleHome}
+                                        />
+                                    )}
+                                    {activeApp === 'jobs' && (
+                                        <UserJobApp 
+                                            phoneData={userPhoneData}
+                                            activeCharacterId={activeCharacterId}
+                                            onNavigate={setActiveApp}
+                                            refreshData={refreshData}
+                                        />
+                                    )}
+                                    {activeApp === 'shop' && (
+                                        <UserShopApp 
+                                            virtualTime={virtualTime}
+                                            onNavigate={setActiveApp}
+                                            onPlaceOrder={handlePlaceOrderWrapper}
+                                            onHome={handleHome}
+                                            phoneData={userPhoneData} 
+                                        />
+                                    )}
+                                    {activeApp === 'cheat' && (
+                                        <CheatApp 
+                                            onNavigate={setActiveApp}
+                                            activeCharacterId={activeCharacterId}
+                                            participants={participants}
+                                            onCheat={handleCheatWrapper}
+                                        />
+                                    )}
+                                    {activeApp === 'settings' && (
+                                        <SettingsApp 
+                                            onNavigate={setActiveApp}
+                                            onUpdateWallpaper={onUpdateWallpaper || (() => {})}
+                                        />
+                                    )}
+                                    {activeApp === 'inventory' && (
+                                        <UserInventoryApp 
+                                            phoneData={userPhoneData}
+                                            onNavigate={setActiveApp}
+                                        />
+                                    )}
+                                    {activeApp === 'spootidy' && (
+                                        <SpootidyApp
+                                            onNavigate={setActiveApp}
+                                            audioRef={audioRef}
+                                            isPlaying={audioState.isPlaying}
+                                            currentTrack={audioState.currentTrack}
+                                            onPlay={handleAudioPlay}
+                                            onPause={handleAudioPause}
+                                            onResume={handleAudioResume}
+                                        />
+                                    )}
+                                </div>
+                            )}
+                        </Suspense>
                     </div>
 
                     {/* === PAGE 1: BOT PHONE === */}

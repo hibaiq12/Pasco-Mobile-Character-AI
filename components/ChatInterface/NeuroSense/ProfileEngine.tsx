@@ -37,6 +37,7 @@ export const useProfileEngine = (
     
     // Ambil setting sync untuk User Name
     const settings = getSettings();
+    const virtualMinute = Math.floor(virtualTime / 60000);
 
     return useMemo(() => {
         // --- 1. VISUAL STATE ---
@@ -104,5 +105,6 @@ export const useProfileEngine = (
             },
             isProcessing: messages.length > 0 && messages[messages.length - 1].role === 'user'
         };
-    }, [character, messages, outfits, Math.floor(virtualTime / 60000)]); 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [character, messages, outfits, virtualMinute, settings.userName]); 
 };

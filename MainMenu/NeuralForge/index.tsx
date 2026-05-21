@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Character } from '../../types';
 import { COMPLEX_SYSTEM_TEMPLATE, DEFAULT_CHARACTER_AVATAR } from '../../constants';
 import { analyzeAvatar } from '../../services/geminiService';
@@ -21,14 +21,14 @@ import { EmotionalConfig } from './Configuration/EmotionalConfig';
 import { ScenarioConfig } from './Configuration/ScenarioConfig';
 import { Button } from '../../components/Button';
 
-// --- EXTERNAL CONFIG (Header & Sidebar & Neural Thinking) ---
-import { ForgeHeader, ForgeSidebar, calculateCoherenceScore, getCoherenceStatus } from './ExternalConfiguration';
+// --- EXTERNAL CONFIG (Header & Sidebar) ---
+import { ForgeHeader, ForgeSidebar } from './ExternalConfiguration';
+import { calculateCoherenceScore, getCoherenceStatus } from './NeuralThinking';
 
 // --- REALISM FORGE ---
 import { RealismForge } from './RealismConfiguration/RealismForge';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const SUGGESTIONS: Record<string, string[]> = {
     style: ["Worn leather aviator jacket", "Pristine white lab coat", "Neon-lit cybernetics", "Victorian gothic dress", "Tactical stealth gear"],
@@ -70,25 +70,11 @@ const MODULES = [
 
 export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCancel, onScroll }) => {
   const settings = getSettings();
-  
-  // --- REALISM CHECK ---
-  const isRealismCharacter = initialData?.id === 'char-hiyori' || initialData?.id?.startsWith('realism-');
-
-  if (isRealismCharacter) {
-      return (
-          <RealismForge 
-              initialData={initialData} 
-              onSave={onSave} 
-              onCancel={onCancel} 
-          />
-      );
-  }
-
-  // --- STANDARD FORGE LOGIC BELOW ---
 
   const [activeSection, setActiveSection] = useState<ForgeSection>('identity');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+      typeof window !== 'undefined' ? window.innerWidth < 768 : true
+  );
   const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({});
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -97,10 +83,6 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
   
   // Animation State
   const [isExiting, setIsExiting] = useState(false);
-
-  useEffect(() => {
-      if (window.innerWidth >= 768) setIsSidebarCollapsed(false);
-  }, []);
 
   const [formData, setFormData] = useState<Partial<Character>>(initialData || {
     id: crypto.randomUUID(),
@@ -116,10 +98,25 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
     memory: { memories: [], obsessions: '' },
     scenario: { currentLocation: '', currentActivity: '', startTime: { year: '2150', month: '01', day: '01', hour: '08', minute: '00' } },
     communication: { style: 'casual', sentenceLength: 'balanced', vocabularyLevel: 'average', emotionalRelay: 'balanced', quirks: '', openingLine: '', voiceConfig: { pitch: 1.0, speed: 1.0, tone: 'Neutral' } },
-    modelConfig: { modelName: settings.defaultModel || 'gemini-2.5-flash', temperature: settings.defaultTemperature || 0.7 }
+    modelConfig: { modelName: settings.defaultModel || 'gemini-3-flash-preview', temperature: settings.defaultTemperature || 0.7 }
   });
 
   const coherenceScore = useMemo(() => calculateCoherenceScore(formData), [formData]);
+  
+  // --- REALISM CHECK ---
+  const isRealismCharacter = initialData?.id === 'char-hiyori' || initialData?.id?.startsWith('realism-');
+
+  if (isRealismCharacter) {
+      return (
+          <RealismForge 
+              initialData={initialData} 
+              onSave={onSave} 
+              onCancel={onCancel} 
+          />
+      );
+  }
+
+  // --- STANDARD FORGE LOGIC BELOW ---
   const status = getCoherenceStatus(coherenceScore);
 
   const handleExit = (callback: () => void) => {
@@ -145,7 +142,6 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
   };
   const handleAutoAnalyze = async () => {
     if (!formData.avatar) return;
-    setIsAnalyzing(true);
     try {
       const analysis = await analyzeAvatar(formData.avatar);
       setFormData(prev => ({ 
@@ -153,7 +149,7 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
           description: analysis,
           appearance: { ...prev.appearance!, features: "Based on visual analysis..." } 
       }));
-    } catch (e) { alert(t('forge.error.analysis')); } finally { setIsAnalyzing(false); }
+    } catch { alert(t('forge.error.analysis')); }
   };
   const handleAutoGenerate = async (section: string) => {
       setIsGenerating(prev => ({...prev, [section]: true}));
@@ -165,13 +161,13 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
       const targetKey = sectionKeyMap[section] || section;
       try {
           const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
+              model: "gemini-3.1-flash-lite-preview",
               contents: `You are a creative character writer. Based on this partial character data: ${JSON.stringify(formData)}, generate a JSON object for the '${targetKey}' property. Make it realistic and coherent.`,
               config: { responseMimeType: "application/json" }
           });
           const result = JSON.parse(response.text || "{}");
-          setFormData(prev => ({ ...prev, [targetKey]: { ...prev[targetKey as keyof Character] as any, ...result } }));
-      } catch (e) { console.error("Auto-Config Failed", e); }
+          setFormData(prev => ({ ...prev, [targetKey]: { ...(prev[targetKey as keyof Character] as Record<string, unknown>), ...result } }));
+      } catch (error) { console.error("Auto-Config Failed", error); }
       setIsGenerating(prev => ({...prev, [section]: false}));
   };
 
@@ -307,7 +303,7 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
                         <h3 className="text-lg md:text-xl font-bold text-white uppercase tracking-tight flex items-center gap-2">
                             {t(`forge.mod.${activeSection}`)} <span className="text-zinc-600 hidden md:inline">{t('forge.header.config')}</span>
                         </h3>
-                        <AutoConfigButton sectionName={activeSection} onClick={() => handleAutoGenerate(activeSection)} isGenerating={!!isGenerating[activeSection]} />
+                        <AutoConfigButton onClick={() => handleAutoGenerate(activeSection)} isGenerating={!!isGenerating[activeSection]} />
                     </div>
 
                     {activeSection === 'identity' && <IdentityConfig formData={formData} setFormData={setFormData} fileInputRef={fileInputRef} handleImageUpload={handleImageUpload} isDragOver={isDragOver} handleDragOver={(e)=>{e.preventDefault();setIsDragOver(true)}} handleDragLeave={(e)=>{e.preventDefault();setIsDragOver(false)}} handleDrop={(e)=>{e.preventDefault();setIsDragOver(false);handleFileSelection(e.dataTransfer.files?.[0])}} handleAutoAnalyze={handleAutoAnalyze} />}

@@ -4,11 +4,11 @@ import { Sparkles, PartyPopper, Zap } from 'lucide-react';
 import { COUNTDOWN_MESSAGES } from './Messages';
 import { useCountdownLogic } from './Logic';
 
-export const CountdownUI: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) => {
+export const CountdownUI: React.FC<{ onUnlock: () => void; isPreview?: boolean }> = ({ onUnlock, isPreview = false }) => {
     const { progress, timeLeft, statusText } = useCountdownLogic(onUnlock);
 
     return (
-        <div className="fixed inset-0 z-[999] bg-black flex flex-col items-center justify-center p-8 text-white select-none overflow-hidden font-sans">
+        <div className={`${isPreview ? 'absolute inset-0 z-10 w-full h-full' : 'fixed inset-0 z-[999]'} bg-black flex flex-col items-center justify-center p-8 text-white select-none overflow-hidden font-sans`}>
             
             {/* --- BACKGROUND ATMOSPHERE (Fireworks/Party Vibe) --- */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-black to-black pointer-events-none" />

@@ -1,18 +1,36 @@
-
+import { get, set } from 'idb-keyval';
 import { SavedStory, Character, ChatSession } from "../../types";
 import { HISTORY_KEY } from "./constants";
 
-export const getSavedStories = (): SavedStory[] => {
+// In-memory cache
+let historyCache: SavedStory[] = [];
+let isHistoryLoaded = false;
+
+export const loadHistoryFromDB = async () => {
     try {
-        const data = localStorage.getItem(HISTORY_KEY);
-        return data ? JSON.parse(data) : [];
-    } catch (e) {
-        return [];
+        const stored = await get<SavedStory[]>(HISTORY_KEY);
+        if (stored) {
+            historyCache = stored;
+        } else {
+            const data = localStorage.getItem(HISTORY_KEY);
+            if (data) {
+                historyCache = JSON.parse(data);
+                await set(HISTORY_KEY, historyCache);
+                localStorage.removeItem(HISTORY_KEY);
+            }
+        }
+        isHistoryLoaded = true;
+    } catch(e) {
+        console.error("Failed to load history from DB", e);
     }
+}
+
+export const getSavedStories = (): SavedStory[] => {
+    return historyCache;
 };
 
-export const saveStorySnapshot = (character: Character, session: ChatSession, name: string, type: 'manual' | 'auto' = 'manual') => {
-    let stories = getSavedStories();
+export const saveStorySnapshotAsync = async (character: Character, session: ChatSession, name: string, type: 'manual' | 'auto' = 'manual') => {
+    let stories = [...historyCache];
     
     if (type === 'auto') {
         const existingAutoIndex = stories.findIndex(s => s.characterId === character.id && s.type === 'auto');
@@ -57,94 +75,34 @@ export const saveStorySnapshot = (character: Character, session: ChatSession, na
         stories.unshift(newStory);
     }
     
-    // Initial Safety Limit
-    if (stories.length > 20) {
-        stories = stories.slice(0, 20);
+    if (stories.length > 50) {
+        stories = stories.slice(0, 50);
     }
 
-    // --- ROBUST QUOTA HANDLING ---
-    const saveWithTrim = (data: SavedStory[]) => {
-        try {
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
-        } catch (e: any) {
-             if (e.name === 'QuotaExceededError' || e.code === 22) {
-                 console.warn("Storage Full. Initiating cleanup protocol...");
-                 
-                 // Strategy 1: Clear generated images cache first (High impact, low loss)
-                 const imagesKey = 'pasco_generated_images';
-                 if (localStorage.getItem(imagesKey)) {
-                     console.warn("Clearing generated images cache to free space.");
-                     localStorage.removeItem(imagesKey);
-                     try {
-                         localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
-                         return; // Success
-                     } catch(retryE) {
-                         // Still full, proceed to next strategy
-                     }
-                 }
-
-                 // Strategy 2: Trim history items
-                 if (data.length > 5) {
-                     data.pop(); 
-                     saveWithTrim(data); 
-                 } else {
-                     // Strategy 3: Aggressive cleanup - strip embedded images from history snapshots
-                     let freedSpace = false;
-                     for (const story of data) {
-                         if (story.sessionData && story.sessionData.messages) {
-                             for (const msg of story.sessionData.messages) {
-                                 if (msg.image) {
-                                     // Replace image data with placeholder or remove
-                                     // We verify it's base64 (long string) before cutting
-                                     if (msg.image.length > 500) { 
-                                         msg.image = undefined;
-                                         freedSpace = true;
-                                     }
-                                 }
-                             }
-                         }
-                     }
-
-                     if (freedSpace) {
-                         console.warn("Stripped embedded images from history snapshots to save text data.");
-                         saveWithTrim(data);
-                     } else {
-                         // Strategy 4: Desperate Trim
-                         if (data.length > 1) {
-                             data.pop();
-                             saveWithTrim(data);
-                         } else {
-                             console.error("Critical: Storage full even with minimal history. Snapshot failed.");
-                         }
-                     }
-                 }
-             } else {
-                 console.error("Unknown storage error", e);
-             }
-        }
-    };
-
-    saveWithTrim(stories);
-};
-
-export const updateSavedStory = (updatedStory: SavedStory) => {
+    historyCache = stories;
+    
     try {
-        const stories = getSavedStories();
-        const index = stories.findIndex(s => s.id === updatedStory.id);
-        if (index !== -1) {
-            stories[index] = updatedStory;
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(stories));
-        }
-    } catch (e) {
-        console.error("Failed to update story:", e);
+        await set(HISTORY_KEY, stories);
+    } catch (e: any) {
+        console.error("Storage Full. IDB failed?", e);
     }
 };
 
-export const deleteSavedStory = (id: string) => {
-    try {
-        const stories = getSavedStories().filter(s => s.id !== id);
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(stories));
-    } catch (e) {
-        console.error("Failed to delete story:", e);
-    }
+export const saveStorySnapshot = (character: Character, session: ChatSession, name: string, type: 'manual' | 'auto' = 'manual') => {
+    saveStorySnapshotAsync(character, session, name, type);
+};
+
+export const updateSavedStory = async (id: string, newName: string) => {
+    historyCache = historyCache.map(s => s.id === id ? { ...s, saveName: newName } : s);
+    await set(HISTORY_KEY, historyCache);
+};
+
+export const deleteSavedStory = async (id: string) => {
+    historyCache = historyCache.filter(s => s.id !== id);
+    await set(HISTORY_KEY, historyCache);
+};
+
+export const clearAllHistory = async () => {
+    historyCache = [];
+    await set(HISTORY_KEY, []);
 };

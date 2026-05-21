@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { InputField } from './SharedComponents';
 
 interface VisualsConfigProps {

@@ -6,7 +6,7 @@ import { validateFaceInImage } from '../../services/Imagecreate';
 interface ImageGenModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onGenerate: (prompt: string, customReference?: string, perspective?: 'third_person' | 'selfie') => void;
+    onGenerate: (prompt: string, customReference?: string, perspective?: '16:9' | '9:16' | 'selfie') => void;
     initialPrompt: string;
     isGenerating: boolean;
     defaultReference: string; // The character's current avatar
@@ -17,7 +17,7 @@ export const ImageGenModal: React.FC<ImageGenModalProps> = ({
 }) => {
     const [prompt, setPrompt] = useState(initialPrompt);
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
-    const [perspective, setPerspective] = useState<'third_person' | 'selfie'>('third_person');
+    const [perspective, setPerspective] = useState<'16:9' | '9:16' | 'selfie'>('16:9');
     
     const [isValidating, setIsValidating] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
@@ -25,11 +25,13 @@ export const ImageGenModal: React.FC<ImageGenModalProps> = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        setPrompt(initialPrompt);
-        setReferenceImage(null);
-        setValidationError(null);
-        setValidationSuccess(false);
-        setPerspective('third_person'); // Reset to default
+        setTimeout(() => {
+            setPrompt(initialPrompt);
+            setReferenceImage(null);
+            setValidationError(null);
+            setValidationSuccess(false);
+            setPerspective('16:9'); // Reset to default
+        }, 0);
     }, [initialPrompt, isOpen]);
 
     const handleFileProcess = async (file: File) => {
@@ -146,16 +148,24 @@ export const ImageGenModal: React.FC<ImageGenModalProps> = ({
                     {/* Camera Perspective Toggle */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                            <Camera size={12} /> Perspektif Kamera
+                            <Camera size={12} /> Perspektif & Rasio
                         </label>
                         <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-white/5">
                             <button 
-                                onClick={() => setPerspective('third_person')}
+                                onClick={() => setPerspective('16:9')}
                                 className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-lg flex items-center justify-center gap-2 transition-all
-                                    ${perspective === 'third_person' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}
+                                    ${perspective === '16:9' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}
                                 `}
                             >
-                                <User size={12} /> Normal View
+                                <ImageIcon size={12} /> 16:9
+                            </button>
+                            <button 
+                                onClick={() => setPerspective('9:16')}
+                                className={`flex-1 py-2 text-[10px] font-bold uppercase rounded-lg flex items-center justify-center gap-2 transition-all
+                                    ${perspective === '9:16' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}
+                                `}
+                            >
+                                <ImageIcon size={12} className="rotate-90" /> 9:16
                             </button>
                             <button 
                                 onClick={() => setPerspective('selfie')}

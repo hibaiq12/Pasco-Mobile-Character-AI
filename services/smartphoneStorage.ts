@@ -1,6 +1,7 @@
 
 import { Character } from "../types";
 import { HIYORI_CONTACTS } from "./StorageServices/CharacterStorage/RealismCharacter/HiyoriKanade/SmartphoneContact/index";
+import { HIKARU_CONTACTS } from "./StorageServices/CharacterStorage/RealismCharacter/HikaruSora/SmartphoneContact/index";
 
 // --- TYPES ---
 export interface Contact {
@@ -174,10 +175,12 @@ export const saveSmartphoneData = (characterId: string, data: CharacterPhoneData
 
 export const initSmartphoneData = (character: Character): CharacterPhoneData => {
     
-    // START MOD: Hiyori Custom Contacts Logic
+    // START MOD: Hiyori & Hikaru Custom Contacts Logic
     let customContacts: Contact[] = [];
     if (character.id === 'char-hiyori') {
-        customContacts = HIYORI_CONTACTS; // Imported from index.ts
+        customContacts = HIYORI_CONTACTS; 
+    } else if (character.id === 'realism-hikaru') {
+        customContacts = HIKARU_CONTACTS;
     } else {
         // Default "Mom" contact (Universal NPC)
         customContacts = [{
@@ -241,9 +244,9 @@ export const initSmartphoneData = (character: Character): CharacterPhoneData => 
     return initialData;
 };
 
-// HELPER FUNCTIONS (unchanged)
+// HELPER FUNCTIONS
 export const addPhoneMessage = (characterId: string, contactId: string, message: PhoneMessage) => {
-    let data = getSmartphoneData(characterId);
+    const data = getSmartphoneData(characterId);
     if (!data) return; 
 
     if (!data.messages[contactId]) {

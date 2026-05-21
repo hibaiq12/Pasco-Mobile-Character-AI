@@ -10,7 +10,7 @@ import { Button } from '../../../components/Button';
 import { t } from '../../../services/translationService';
 import { 
   ChevronLeft, ScanFace, Eye, Speaker, Activity, HeartHandshake, Scale, UserPlus, Layers, Sword, BookOpen, Brain, MapPin, Play, Dna,
-  Sparkles, Crown, PanelLeftClose, PanelLeftOpen, Flower, X, Wind, CloudSun, Zap, Fingerprint, BrainCircuit, MessageCircle, Save, ArrowLeft
+  Sparkles, Crown, PanelLeftClose, PanelLeftOpen, Flower, X, Wind, CloudSun, Zap, Fingerprint, BrainCircuit, MessageCircle, Save
 } from 'lucide-react';
 
 // --- REALISM CONFIG COMPONENTS ---
@@ -25,11 +25,9 @@ import { ScenarioConfig } from './ScenarioConfig';
 import { MiniNeuralForge } from './MiniNeuralForge/UI'; 
 
 // --- EXTERNAL UTILS ---
-import { calculateCoherenceScore } from '../ExternalConfiguration';
-import { analyzeNeuralCoherence } from '../NeuralThinking';
+import { calculateCoherenceScore, analyzeNeuralCoherence } from '../NeuralThinking';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const SUGGESTIONS: Record<string, string[]> = {
     style: ["Worn leather aviator jacket", "Pristine white lab coat", "Neon-lit cybernetics", "Victorian gothic dress", "Tactical stealth gear"],
@@ -69,6 +67,36 @@ const MODULES = [
     { id: 'scenario', icon: <MapPin size={18}/>, labelKey: 'forge.mod.scenario' },
 ];
 
+// Base64 Noise Texture for Reliability
+const BASE64_NOISE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCI+PGRlZnM+PGZpbHRlciBpZD0iYSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIwLjE1Ii8+PC9zdmc+";
+
+interface MetricBarProps {
+    label: string;
+    value: number;
+    icon: React.ElementType;
+    color: string;
+    animate?: boolean;
+}
+
+const MetricBar = ({ label, value, icon: Icon, color, animate }: MetricBarProps) => (
+    <div className="mb-4 group">
+        <div className="flex justify-between items-end mb-1.5">
+            <div className="flex items-center gap-2 text-slate-500 group-hover:text-blue-600 transition-colors">
+                <Icon size={14} className={color} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+            </div>
+            <span className={`text-[10px] font-mono font-bold ${color}`}>{Math.round(value)}%</span>
+        </div>
+        <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden border border-slate-300 relative">
+            <div 
+                className={`h-full transition-all duration-1000 ease-out ${color.replace('text-', 'bg-')} relative`} 
+                style={{ width: animate ? `${value}%` : '0%' }}
+            >
+            </div>
+        </div>
+    </div>
+);
+
 // --- REALISM ANALYSIS MODAL ---
 const RealismAnalysisModal = ({ 
     score, 
@@ -95,25 +123,6 @@ const RealismAnalysisModal = ({
     const radius = 58;
     const circumference = 2 * Math.PI * radius;
     const progressOffset = circumference - (score / 100) * circumference;
-
-    const MetricBar = ({ label, value, icon: Icon, color }: any) => (
-        <div className="mb-4 group">
-            <div className="flex justify-between items-end mb-1.5">
-                <div className="flex items-center gap-2 text-slate-500 group-hover:text-blue-600 transition-colors">
-                    <Icon size={14} className={color} />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
-                </div>
-                <span className={`text-[10px] font-mono font-bold ${color}`}>{Math.round(value)}%</span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden border border-slate-300 relative">
-                <div 
-                    className={`h-full transition-all duration-1000 ease-out ${color.replace('text-', 'bg-')} relative`} 
-                    style={{ width: animate ? `${value}%` : '0%' }}
-                >
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <div className={`fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`} onClick={handleClose}>
@@ -190,8 +199,9 @@ const RealismAnalysisModal = ({
 export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave, onCancel, onScroll }) => {
   const settings = getSettings();
   const [activeSection, setActiveSection] = useState<ForgeSection>('identity');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+      typeof window !== 'undefined' ? window.innerWidth < 768 : true
+  );
   const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({});
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -203,12 +213,6 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
   const [showMiniForge, setShowMiniForge] = useState(false);
   
   const [isExiting, setIsExiting] = useState(false);
-
-  useEffect(() => {
-      if (window.innerWidth >= 768) {
-          setIsSidebarCollapsed(false);
-      }
-  }, []);
 
   const [formData, setFormData] = useState<Partial<Character>>(initialData || {
     id: crypto.randomUUID(),
@@ -224,7 +228,7 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
     memory: { memories: [], obsessions: '' },
     scenario: { currentLocation: '', currentActivity: '', startTime: { year: '2150', month: '01', day: '01', hour: '08', minute: '00' } },
     communication: { style: 'casual', sentenceLength: 'balanced', vocabularyLevel: 'average', emotionalRelay: 'balanced', quirks: '', openingLine: '', voiceConfig: { pitch: 1.0, speed: 1.0, tone: 'Neutral' } },
-    modelConfig: { modelName: settings.defaultModel || 'gemini-2.5-flash', temperature: settings.defaultTemperature || 0.7 }
+    modelConfig: { modelName: settings.defaultModel || 'gemini-3.1-flash-lite-preview', temperature: settings.defaultTemperature || 0.7 }
   });
 
   const coherenceScore = useMemo(() => calculateCoherenceScore(formData), [formData]);
@@ -252,7 +256,6 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
   };
   const handleAutoAnalyze = async () => {
     if (!formData.avatar) return;
-    setIsAnalyzing(true);
     try {
       const analysis = await analyzeAvatar(formData.avatar);
       setFormData(prev => ({ 
@@ -260,7 +263,7 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
           description: analysis,
           appearance: { ...prev.appearance!, features: "Based on visual analysis..." } 
       }));
-    } catch (e) { alert(t('forge.error.analysis')); } finally { setIsAnalyzing(false); }
+    } catch { alert(t('forge.error.analysis')); }
   };
   const handleAutoGenerate = async (section: string) => {
       setIsGenerating(prev => ({...prev, [section]: true}));
@@ -272,13 +275,13 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
       const targetKey = sectionKeyMap[section] || section;
       try {
           const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
+              model: "gemini-3.1-flash-lite-preview",
               contents: `You are a creative character writer. Based on this partial character data: ${JSON.stringify(formData)}, generate a JSON object for the '${targetKey}' property. Make it realistic and coherent.`,
               config: { responseMimeType: "application/json" }
           });
           const result = JSON.parse(response.text || "{}");
-          setFormData(prev => ({ ...prev, [targetKey]: { ...prev[targetKey as keyof Character] as any, ...result } }));
-      } catch (e) { console.error("Auto-Config Failed", e); }
+          setFormData(prev => ({ ...prev, [targetKey]: { ...(prev[targetKey as keyof Character] as Record<string, unknown>), ...result } }));
+      } catch (error) { console.error("Auto-Config Failed", error); }
       setIsGenerating(prev => ({...prev, [section]: false}));
   };
 
@@ -468,7 +471,7 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
                         {MODULES.map(mod => (
                             <button 
                                 key={mod.id} 
-                                onClick={() => setActiveSection(mod.id as any)}
+                                onClick={() => setActiveSection(mod.id as ForgeSection)}
                                 title={isSidebarCollapsed ? t(mod.labelKey) : ''}
                                 className={`
                                     flex items-center rounded-lg transition-all duration-200 group relative border
@@ -479,7 +482,7 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
                                 `}
                             >
                                 <div className={`transition-colors ${activeSection === mod.id ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-400'}`}>
-                                    {React.cloneElement(mod.icon as any, { size: 18 })}
+                                    {React.cloneElement(mod.icon as React.ReactElement, { size: 18 })}
                                 </div>
                                 {!isSidebarCollapsed && <span className="text-[11px] font-bold uppercase tracking-widest flex-1 truncate font-sans">{t(mod.labelKey)}</span>}
                                 
@@ -551,6 +554,11 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
             >
                 {/* BACKGROUND DECORATIONS (ANIMATED SVGS) */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    {/* Fixed Background Noise */}
+                    <div 
+                        className="absolute inset-0 opacity-[0.05] pointer-events-none"
+                        style={{ backgroundImage: `url("${BASE64_NOISE}")` }}
+                    ></div>
                     <Flower className="absolute top-10 right-10 text-blue-200/40 w-64 h-64 animate-[spin_60s_linear_infinite]" strokeWidth={0.5} />
                     <Sparkles className="absolute bottom-20 left-10 text-blue-300/30 w-32 h-32 animate-pulse-slow" />
                     <Wind className="absolute top-1/3 left-20 text-cyan-200/30 w-40 h-40 animate-float" strokeWidth={1} />
@@ -575,7 +583,7 @@ export const RealismForge: React.FC<RealismForgeProps> = ({ initialData, onSave,
                                     <span className="text-blue-200 text-lg hidden md:inline">//</span>
                                     <span className="text-slate-400 text-xs font-sans font-bold tracking-widest hidden md:inline">{t('forge.header.config')}</span>
                                 </h3>
-                                <AutoConfigButton sectionName={activeSection} onClick={() => handleAutoGenerate(activeSection)} isGenerating={!!isGenerating[activeSection]} />
+                                <AutoConfigButton onClick={() => handleAutoGenerate(activeSection)} isGenerating={!!isGenerating[activeSection]} />
                             </div>
 
                             {activeSection === 'identity' && <IdentityConfig formData={formData} setFormData={setFormData} fileInputRef={fileInputRef} handleImageUpload={handleImageUpload} isDragOver={isDragOver} handleDragOver={(e)=>{e.preventDefault();setIsDragOver(true)}} handleDragLeave={(e)=>{e.preventDefault();setIsDragOver(false)}} handleDrop={(e)=>{e.preventDefault();setIsDragOver(false);handleFileSelection(e.dataTransfer.files?.[0])}} handleAutoAnalyze={handleAutoAnalyze} />}

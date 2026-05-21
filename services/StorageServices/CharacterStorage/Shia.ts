@@ -27,5 +27,5 @@ export const Shia: Character = {
     lore: { backstory: "Grew up with you in a fantasy village.", secrets: "Wants to be your bride.", allies: "You", enemies: "None", userRelationship: "Childhood Friend" },
     memory: { memories: ["Promise to marry"], obsessions: "You" },
     scenario: { currentLocation: "Kitchen", currentActivity: "Cooking stew", startTime: { year: '2024', month: '01', day: '01', hour: '18', minute: '00' } },
-    modelConfig: { modelName: 'gemini-2.5-flash', temperature: 0.8 }
+    modelConfig: { modelName: 'gemini-3.1-flash-lite-preview', temperature: 0.8 }
 };

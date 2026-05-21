@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, User, Trash2, Save, Smartphone, ChevronRight, Speaker, BookOpen, Brain, MessageSquare, DollarSign, Sparkles, Scale, Users, Heart, Zap, Search, MoreHorizontal } from 'lucide-react';
-import { Contact } from '../../../services/smartphoneStorage';
+import { ArrowLeft, Plus, User, Trash2, Save, Smartphone, ChevronRight, Speaker, BookOpen, Brain, MessageSquare, DollarSign, Sparkles, Scale, Users, Heart, Search } from 'lucide-react';
 import { VoiceConfig } from './Configuration/VoiceConfig';
 import { LoreConfig } from './Configuration/LoreConfig';
 import { MemoryConfig } from './Configuration/MemoryConfig';
@@ -16,7 +15,7 @@ interface MiniNeuralForgeProps {
 }
 
 // Default Data for new contact
-const DEFAULT_CONTACT: Partial<Contact> & { [key: string]: any } = {
+const DEFAULT_CONTACT: Partial<Contact> & Record<string, unknown> = {
     name: '',
     lastMessage: 'Connected.',
     isOnline: false,
@@ -52,13 +51,13 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
     const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
     
     // Mock Data - In real implementation this should sync with smartphoneStorage
-    const [contacts, setContacts] = useState<any[]>([
+    const [contacts, setContacts] = useState<Record<string, unknown>[]>([
         { ...DEFAULT_CONTACT, id: '1', name: 'Ibu Sayang 🌹', description: 'Protective mother', wealthLevel: 60, relationshipLabel: 'Mother', role: 'Family' },
         { ...DEFAULT_CONTACT, id: '2', name: 'Dodi (Sobat)', description: 'Gaming buddy', wealthLevel: 30, relationshipLabel: 'Best Friend', role: 'Friend' }
     ]);
     
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editData, setEditData] = useState<any>(null);
+    const [editData, setEditData] = useState<Record<string, unknown> | null>(null);
     const [activeTab, setActiveTab] = useState('lore');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -73,15 +72,15 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
         setActiveTab('lore');
     };
 
-    const handleEdit = (contact: any) => {
+    const handleEdit = (contact: Record<string, unknown>) => {
         setEditData({ ...contact }); 
-        setEditingId(contact.id);
+        setEditingId(contact.id as string);
         setViewMode('editor');
         setActiveTab('lore');
     };
 
     const handleSave = () => {
-        if (editingId) {
+        if (editingId && editData) {
             setContacts(prev => {
                 const exists = prev.find(c => c.id === editingId);
                 if (exists) {
@@ -100,14 +99,14 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
         setContacts(prev => prev.filter(c => c.id !== id));
     };
 
-    const updateField = (key: string, value: any) => {
-        setEditData((prev: any) => ({ ...prev, [key]: value }));
+    const updateField = (key: string, value: unknown) => {
+        setEditData((prev) => prev ? ({ ...prev, [key]: value }) : null);
     };
 
     // Filtered Contacts
     const filteredContacts = contacts.filter(c => 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        c.role?.toLowerCase().includes(searchQuery.toLowerCase())
+        (c.name as string).toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (c.role as string)?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     // --- RENDER EDITOR ---
@@ -124,7 +123,7 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
                         </button>
                         <div className="flex flex-col">
                             <input 
-                                value={editData.name} 
+                                value={(editData.name as string) || ''} 
                                 onChange={(e) => updateField('name', e.target.value)}
                                 className="bg-transparent border-none outline-none font-bold text-white text-sm md:text-base placeholder-zinc-600 w-32 md:w-64 focus:ring-0 truncate"
                                 placeholder="Name..."
@@ -173,14 +172,14 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
                 {/* 3. CONTENT AREA (Responsive Container) */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-gradient-to-b from-zinc-900 to-black">
                     <div className="p-4 md:p-8 max-w-4xl mx-auto pb-32 min-h-full">
-                        {activeTab === 'lore' && <LoreConfig data={editData} onChange={updateField} />}
-                        {activeTab === 'voice' && <VoiceConfig data={editData} onChange={updateField} />}
-                        {activeTab === 'memory' && <MemoryConfig data={editData} onChange={updateField} />}
-                        {activeTab === 'dialogue' && <DialogueConfig data={editData} onChange={updateField} />}
-                        {activeTab === 'wealth' && <WealthConfig data={editData} onChange={updateField} />}
-                        {activeTab === 'moral' && <MoralConfig data={editData} onChange={updateField} />}
-                        {activeTab === 'social' && <SocialConfig data={editData} onChange={updateField} />}
-                        {activeTab === 'relationship' && <RelationshipConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'lore' && editData && <LoreConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'voice' && editData && <VoiceConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'memory' && editData && <MemoryConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'dialogue' && editData && <DialogueConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'wealth' && editData && <WealthConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'moral' && editData && <MoralConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'social' && editData && <SocialConfig data={editData} onChange={updateField} />}
+                        {activeTab === 'relationship' && editData && <RelationshipConfig data={editData} onChange={updateField} />}
                     </div>
                 </div>
             </div>
@@ -260,14 +259,14 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
                                             <div className="absolute bottom-1 left-1 w-1 h-1 bg-white/10 rounded-full"></div>
                                         </div>
                                         <div className="min-w-0">
-                                            <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors truncate">{contact.name}</h4>
+                                            <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors truncate">{contact.name as string}</h4>
                                             <div className="flex items-center gap-2 mt-0.5">
                                                 <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 uppercase tracking-wide">
-                                                    {contact.role || 'NPC'}
+                                                    {(contact.role as string) || 'NPC'}
                                                 </span>
                                                 {contact.relationshipLabel && (
                                                     <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-300 uppercase tracking-wide truncate max-w-[80px]">
-                                                        {contact.relationshipLabel}
+                                                        {contact.relationshipLabel as string}
                                                     </span>
                                                 )}
                                             </div>
@@ -293,7 +292,7 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
                                 {/* Description / Stats */}
                                 <div className="relative z-10 space-y-3">
                                     <p className="text-[10px] text-zinc-500 line-clamp-2 h-8 leading-relaxed">
-                                        {contact.description || 'No detailed description provided for this persona.'}
+                                        {(contact.description as string) || 'No detailed description provided for this persona.'}
                                     </p>
                                     
                                     {/* Mini Stats Grid */}
@@ -303,7 +302,7 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
                                             <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
                                                 <div 
                                                     className="h-full bg-emerald-500/50 rounded-full" 
-                                                    style={{ width: `${contact.wealthLevel || 50}%` }}
+                                                    style={{ width: `${(contact.wealthLevel as number) || 50}%` }}
                                                 ></div>
                                             </div>
                                         </div>
@@ -312,7 +311,7 @@ export const MiniNeuralForge: React.FC<MiniNeuralForgeProps> = ({ onBack }) => {
                                             <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
                                                 <div 
                                                     className="h-full bg-blue-500/50 rounded-full" 
-                                                    style={{ width: `${contact.trustLevel || 50}%` }}
+                                                    style={{ width: `${(contact.trustLevel as number) || 50}%` }}
                                                 ></div>
                                             </div>
                                         </div>

@@ -45,10 +45,10 @@ export const RestartModal: React.FC<RestartModalProps> = ({
                             <p className="text-sm text-cyan-400/80 font-mono">Re-instancing Neural Pathways...</p>
                         </div>
                         <div className="space-y-2 text-left bg-zinc-900/50 p-4 rounded-xl border border-cyan-500/10 font-mono text-xs text-cyan-300/70 shadow-inner">
-                            <p>> Terminating current session thread...</p>
-                            <p className={restartProgress > 20 ? 'opacity-100 text-cyan-200' : 'opacity-30'}>> Flushing short-term memory buffer...</p>
-                            <p className={restartProgress > 50 ? 'opacity-100 text-cyan-200' : 'opacity-30'}>> Calibrating personality matrix...</p>
-                            <p className={restartProgress > 80 ? 'opacity-100 text-cyan-200' : 'opacity-30'}>> Establishing fresh link...</p>
+                            <p>&gt; Terminating current session thread...</p>
+                            <p className={restartProgress > 20 ? 'opacity-100 text-cyan-200' : 'opacity-30'}>&gt; Flushing short-term memory buffer...</p>
+                            <p className={restartProgress > 50 ? 'opacity-100 text-cyan-200' : 'opacity-30'}>&gt; Calibrating personality matrix...</p>
+                            <p className={restartProgress > 80 ? 'opacity-100 text-cyan-200' : 'opacity-30'}>&gt; Establishing fresh link...</p>
                         </div>
                         <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5">
                             <div 

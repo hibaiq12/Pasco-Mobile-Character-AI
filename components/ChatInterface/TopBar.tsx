@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, RotateCcw, PanelRight, Smartphone as SmartphoneIcon, Clock, Cpu, Zap, Server } from 'lucide-react';
 import { Character } from '../../types';
+import { getSettings } from '../../services/storageService';
 
 interface TopBarProps {
     activeChar: Character;
@@ -20,49 +21,73 @@ export const TopBar: React.FC<TopBarProps> = ({
     onBack, onRestart, onToggleRightPanel, onTogglePhone, onShowProfile
 }) => {
     
-    // Helper to determine model badge appearance
-    const getModelBadge = (modelName?: string) => {
-        const m = (modelName || 'gemini-2.5-flash').toLowerCase();
-        
-        if (m.includes('openrouter')) {
-            return { 
-                label: 'OpenRouter', 
-                color: 'text-blue-400', 
-                bg: 'bg-blue-500/10', 
-                border: 'border-blue-500/20', 
-                icon: Server 
-            };
-        }
-        if (m.includes('kobold')) {
-            return { 
-                label: 'KoboldAI', 
-                color: 'text-orange-400', 
-                bg: 'bg-orange-500/10', 
-                border: 'border-orange-500/20', 
-                icon: Cpu 
-            };
-        }
-        if (m.includes('pro') || m.includes('3.0')) {
-            return { 
-                label: 'Gemini 3.0 Pro', 
-                color: 'text-violet-400', 
-                bg: 'bg-violet-500/10', 
-                border: 'border-violet-500/20', 
-                icon: Zap 
-            };
-        }
-        // Default / Flash
-        return { 
-            label: 'Gemini 2.5', 
-            color: 'text-emerald-400', 
-            bg: 'bg-emerald-500/10', 
-            border: 'border-emerald-500/20', 
-            icon: Zap 
-        };
-    };
+    // Read global settings to determine visual state of model badge
+    const [modelBadge, setModelBadge] = useState({
+        label: 'GEMINI',
+        color: 'text-emerald-400',
+        bg: 'bg-emerald-500/10',
+        border: 'border-emerald-500/20',
+        icon: Zap
+    });
 
-    const modelInfo = getModelBadge(activeChar.modelConfig?.modelName);
-    const BadgeIcon = modelInfo.icon;
+    useEffect(() => {
+        const settings = getSettings();
+        const model = (settings.defaultModel || '').toLowerCase();
+
+        // LOGIC VISUAL
+        setTimeout(() => {
+            if (model.includes('gemini-3')) {
+                // GEMINI 3.0 PRO (Light Blue / Cyan)
+                setModelBadge({
+                    label: 'GEMINI',
+                    color: 'text-sky-400',
+                    bg: 'bg-sky-500/10',
+                    border: 'border-sky-500/20',
+                    icon: Zap
+                });
+            } else if (model.includes('openrouter')) {
+                // OPENROUTER (Blue/Indigo)
+                setModelBadge({
+                    label: 'OPENROUTER',
+                    color: 'text-indigo-400',
+                    bg: 'bg-indigo-500/10',
+                    border: 'border-indigo-500/20',
+                    icon: Server
+                });
+            } else if (model.includes('ollama')) {
+                // OLLAMA (Blue/Cyan/White)
+                setModelBadge({
+                    label: 'OLLAMA',
+                    color: 'text-cyan-400',
+                    bg: 'bg-cyan-500/10',
+                    border: 'border-cyan-500/20',
+                    icon: Cpu
+                });
+            } else if (model.includes('kobold')) {
+                // KOBOLD AI (Red)
+                // Kita ambil nama model dari settings, kalau kosong pake default 'KOBOLD CPP'
+                const koboldLabel = settings.koboldModel ? settings.koboldModel.toUpperCase() : 'KOBOLD CPP';
+                setModelBadge({
+                    label: koboldLabel,
+                    color: 'text-red-400',
+                    bg: 'bg-red-500/10',
+                    border: 'border-red-500/20',
+                    icon: Zap
+                });
+            } else {
+                // GEMINI 2.5 FLASH (Standard Emerald/Green)
+                setModelBadge({
+                    label: 'GEMINI',
+                    color: 'text-emerald-400',
+                    bg: 'bg-emerald-500/10',
+                    border: 'border-emerald-500/20',
+                    icon: Zap
+                });
+            }
+        }, 0);
+    }, [activeChar]); // Re-run if character changes, though mostly depends on global settings
+
+    const BadgeIcon = modelBadge.icon;
 
     return (
         <div className="h-16 border-b border-white/5 flex items-center justify-between px-4 md:px-6 bg-zinc-950/80 backdrop-blur-md z-10 shrink-0">
@@ -88,19 +113,14 @@ export const TopBar: React.FC<TopBarProps> = ({
                      </div>
                 </div>
 
-                {/* MODEL BADGE */}
-                {/* Visible on all screens, adjusted for mobile fit */}
+                {/* MODEL BADGE (VISUAL INDICATOR) */}
                 <div className={`
                     flex items-center gap-2 px-2.5 py-1 rounded-full border backdrop-blur-md transition-all shrink-0
-                    ${modelInfo.bg} ${modelInfo.border}
+                    ${modelBadge.bg} ${modelBadge.border}
                 `}>
-                    <BadgeIcon size={12} className={modelInfo.color} />
-                    <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${modelInfo.color} hidden sm:inline`}>
-                        {modelInfo.label}
-                    </span>
-                    {/* Short label for mobile */}
-                    <span className={`text-[9px] font-bold uppercase tracking-wider ${modelInfo.color} sm:hidden`}>
-                        {modelInfo.label.split(' ')[0]}
+                    <BadgeIcon size={12} className={modelBadge.color} />
+                    <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${modelBadge.color}`}>
+                        {modelBadge.label}
                     </span>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, ArrowLeft, Shirt, User, Sparkles, Wand2, Image as ImageIcon, Loader2, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Shirt, User, Sparkles, Wand2, Image as ImageIcon, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { OutfitItem } from '../../../types';
 import { generateOutfitConfig } from '../../../services/geminiService';
 import { t } from '../../../services/translationService';
@@ -53,10 +53,7 @@ export const WardrobeEditor: React.FC<WardrobeEditorProps> = ({
         setOutfits(outfits.filter(o => o.id !== id));
     };
 
-    const handleAiReplace = (newItems: { part: string, desc: string }[]) => {
-        // Keep outfits from the OTHER target
-        const otherOutfits = outfits.filter(o => o.target !== activeTab);
-        
+    const handleAiReplace = (newItems: { part: string, desc: string }[], mode: 'replace' | 'append') => {
         // Convert new AI items to OutfitItem
         const formattedItems: OutfitItem[] = newItems.map(item => ({
             id: crypto.randomUUID(),
@@ -65,21 +62,26 @@ export const WardrobeEditor: React.FC<WardrobeEditorProps> = ({
             desc: item.desc
         }));
 
-        setOutfits([...otherOutfits, ...formattedItems]);
+        if (mode === 'replace') {
+            const otherOutfits = outfits.filter(o => o.target !== activeTab);
+            setOutfits([...otherOutfits, ...formattedItems]);
+        } else {
+            setOutfits([...outfits, ...formattedItems]);
+        }
     };
 
-    const handleMagicGenerate = async () => {
+    const handleMagicGenerate = async (mode: 'replace' | 'append') => {
         if (!magicPrompt.trim() || isGenerating) return;
         
         setIsGenerating(true);
         try {
             const items = await generateOutfitConfig(magicPrompt, 'text');
             if (items && items.length > 0) {
-                handleAiReplace(items);
+                handleAiReplace(items, mode);
                 setMagicPrompt('');
             }
-        } catch (e) {
-            console.error(e);
+        } catch (error: unknown) {
+            console.error(error);
         } finally {
             setIsGenerating(false);
         }
@@ -91,17 +93,17 @@ export const WardrobeEditor: React.FC<WardrobeEditorProps> = ({
         setIsGenerating(true);
         try {
             const reader = new FileReader();
-            reader.onload = async (e) => {
-                const base64 = e.target?.result as string;
+            reader.onload = async (event: ProgressEvent<FileReader>) => {
+                const base64 = event.target?.result as string;
                 const items = await generateOutfitConfig(base64, 'image');
                 if (items && items.length > 0) {
-                    handleAiReplace(items);
+                    handleAiReplace(items, 'replace'); // default
                 }
                 setIsGenerating(false);
             };
             reader.readAsDataURL(file);
-        } catch (e) {
-            console.error(e);
+        } catch (error: unknown) {
+            console.error(error);
             setIsGenerating(false);
         }
     };
@@ -145,23 +147,38 @@ export const WardrobeEditor: React.FC<WardrobeEditorProps> = ({
                 {/* AI MAGIC AREA */}
                 <div className="space-y-2">
                     {/* Text Prompt */}
-                    <div className="relative group">
+                    <div className="flex flex-col gap-2">
                         <input 
                             type="text"
                             value={magicPrompt}
                             onChange={(e) => setMagicPrompt(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleMagicGenerate()}
+                            onKeyDown={(e) => e.key === 'Enter' && handleMagicGenerate('replace')}
                             placeholder={t('wd.magic.prompt')}
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white focus:border-violet-500 outline-none placeholder-zinc-500 shadow-inner"
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white focus:border-violet-500 outline-none placeholder-zinc-500 shadow-inner"
                             disabled={isGenerating}
                         />
-                        <button 
-                            onClick={handleMagicGenerate}
-                            disabled={isGenerating || !magicPrompt.trim()}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-all disabled:bg-transparent disabled:text-zinc-600"
-                        >
-                            {isGenerating ? <Loader2 size={12} className="animate-spin"/> : <Wand2 size={12} />}
-                        </button>
+                        {magicPrompt.trim() && (
+                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <button 
+                                    onClick={() => handleMagicGenerate('replace')}
+                                    disabled={isGenerating}
+                                    title="Ganti Keseluruhan Pakaian"
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-violet-600/20 hover:bg-violet-600 border border-violet-500 text-violet-100 rounded-xl transition-all disabled:opacity-50 text-xs font-medium"
+                                >
+                                    {isGenerating ? <Loader2 size={12} className="animate-spin"/> : <Wand2 size={12} />}
+                                    Ganti Semua
+                                </button>
+                                <button 
+                                    onClick={() => handleMagicGenerate('append')}
+                                    disabled={isGenerating}
+                                    title="Tambahkan ke Pakaian Saat Ini"
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white rounded-xl transition-all disabled:opacity-50 text-xs font-medium"
+                                >
+                                    <Plus size={12} />
+                                    Tambahkan
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Drop Zone */}

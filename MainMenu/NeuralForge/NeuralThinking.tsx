@@ -20,8 +20,19 @@ export interface AnalysisResult {
     breakdown: AnalysisBreakdown;
 }
 
+export const calculateCoherenceScore = (formData: Partial<Character>): number => {
+    return analyzeNeuralCoherence(formData).score;
+};
+
+export const getCoherenceStatus = (score: number) => {
+    if (score < 40) return { label: "Artificial Intelligence", color: "text-zinc-500", bar: "bg-zinc-700", stroke: "#52525b", glow: "shadow-none" };
+    if (score < 70) return { label: "Simulated Persona", color: "text-blue-400", bar: "bg-blue-600", stroke: "#60a5fa", glow: "shadow-blue-500/50" };
+    if (score < 90) return { label: "Complex Soul", color: "text-violet-400", bar: "bg-violet-500", stroke: "#a78bfa", glow: "shadow-violet-500/50" };
+    return { label: "Human-Like Entity", color: "text-emerald-400", bar: "bg-gradient-to-r from-emerald-500 to-cyan-400", stroke: "#34d399", glow: "shadow-emerald-500/50" };
+};
+
 export const analyzeNeuralCoherence = (char: Partial<Character>): AnalysisResult => {
-    let rawScore = 0;
+    // let rawScore = 0; // Unused
     const details: string[] = [];
     
     // Breakdown tracking
@@ -89,7 +100,7 @@ export const analyzeNeuralCoherence = (char: Partial<Character>): AnalysisResult
     if (char.emotionalProfile?.stability) scoreComplexity += 5;
 
     // Sum Total
-    rawScore = scoreIdentity + scorePsyche + scoreDuality + scoreLore + scoreComplexity;
+    const rawScore = scoreIdentity + scorePsyche + scoreDuality + scoreLore + scoreComplexity;
 
     // --- NORMALISASI SKOR ---
     const finalScore = Math.min(100, Math.max(0, rawScore));

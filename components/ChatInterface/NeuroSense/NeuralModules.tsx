@@ -21,12 +21,15 @@ const IconMap: Record<string, any> = {
 
 // 1. VISUAL STATE (Terminal Style)
 export const VisualState = ({ state }: { state: string }) => (
-    <div className="group">
+    <div className="group cursor-pointer hover:scale-[1.01] transition-transform duration-300" onClick={() => (window as any)._openImageHistory && (window as any)._openImageHistory()}>
         <ModuleHeader icon={Eye} title="Visual Cortex" color="text-cyan-400" />
-        <div className="bg-black/40 p-3 rounded-lg border-l-2 border-cyan-500/50 text-xs text-cyan-100/80 leading-relaxed font-mono relative overflow-hidden">
+        <div className="bg-black/40 p-3 rounded-lg border-l-2 border-cyan-500/50 text-xs text-cyan-100/80 leading-relaxed font-mono relative overflow-hidden ring-0 group-hover:ring-1 ring-cyan-500/50">
             <div className="absolute top-0 left-0 w-full h-full bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
             <span className="text-cyan-600 mr-2">Observed:</span>
             {state}
+            <div className="absolute top-1 right-2 text-[8px] uppercase tracking-widest text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                [View Memories]
+            </div>
         </div>
     </div>
 );
@@ -70,12 +73,23 @@ export const PsycheStability = ({ psyche }: { psyche: NeuralProfile['psyche'] })
                 </div>
             </div>
 
-            {psyche.warning && (
-                <div className="mt-2 flex items-center gap-2 text-[9px] text-red-400 font-bold bg-red-950/20 px-2 py-1.5 rounded border border-red-500/20 animate-pulse">
-                    <AlertTriangle size={10} />
-                    {psyche.warning}
-                </div>
-            )}
+            {psyche.warning && (() => {
+                let warningStyle = "text-emerald-400 bg-emerald-950/20 border-emerald-500/20";
+                if (psyche.stability < 20) {
+                    warningStyle = "text-red-400 bg-red-950/20 border-red-500/20 animate-pulse";
+                } else if (psyche.stability < 50) {
+                    warningStyle = "text-orange-400 bg-orange-950/20 border-orange-500/20";
+                } else if (psyche.stability < 65) {
+                    warningStyle = "text-yellow-400 bg-yellow-950/20 border-yellow-500/20";
+                }
+                
+                return (
+                    <div className={`mt-2 flex items-center gap-2 text-[9px] font-bold px-2 py-1.5 rounded border ${warningStyle}`}>
+                        {psyche.stability < 50 ? <AlertTriangle size={10} /> : <Activity size={10} />}
+                        {psyche.warning}
+                    </div>
+                );
+            })()}
         </div>
     );
 };

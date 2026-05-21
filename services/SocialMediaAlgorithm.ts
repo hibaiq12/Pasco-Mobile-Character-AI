@@ -8,7 +8,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 // --- CONFIGURATION ---
 const MAX_POSTS_PER_BATCH = 3;
 const MAX_TOTAL_POSTS_PER_SESSION = 50; 
-const GENERATION_MODEL = "gemini-2.5-flash"; 
+const GENERATION_MODEL = "gemini-3.1-flash-lite-preview"; 
 
 // --- TYPES ---
 interface SocialGenContext {
@@ -105,6 +105,88 @@ export const generateSocialFeedBatchAI = async (
     } catch (e) {
         console.error("Social Feed Gen Error", e);
         return [];
+    }
+};
+
+/**
+ * Targeted AI post generation for a specific character.
+ */
+export const generateCharacterPostAI = async (
+    candidate: SocialCandidate,
+    context: SocialGenContext,
+    attachment: 'none' | '16:9' | '9:16' | 'selfie'
+): Promise<Partial<SocialPost>> => {
+    
+    const settings = getSettings();
+    if (settings.enablePreviewMode) {
+        return {
+            content: "Preview Mode: AI Post Generation is disabled.",
+            likes: 0
+        };
+    }
+
+    let imageInstruction = "";
+    if (attachment === 'selfie') {
+        imageInstruction = `
+        **IMAGE RULE (SELFIE):**
+        The character IS taking a selfie.
+        Describe: Body pose, face expression, clothes, time of day, weather, and background.
+        Example format: "[Image: Selfie of Me wearing a school uniform, smiling brightly with cherry blossoms behind me] Good morning!"
+        `;
+    } else if (attachment !== 'none') {
+        imageInstruction = `
+        **IMAGE RULE (RESOLUTION ${attachment}):**
+        The character took a photo of their surroundings or something interesting.
+        Describe the scene vividly.
+        Example format: "[Image: A view of the city skyline at night with neon lights] The city never sleeps."
+        `;
+    }
+
+    const prompt = `
+    SYSTEM: Generate a single realistic social media post (Twitter style) for the character.
+    
+    **CURRENT LIVE CONTEXT:**
+    - Time: ${context.time}
+    - Weather: ${context.weather}
+    - Location: ${context.userLocation}
+    
+    **CHARACTER:**
+    Name: ${candidate.name}
+    Persona: ${candidate.description.slice(0, 500)}
+    
+    ${imageInstruction}
+    
+    **INSTRUCTION:**
+    1. The post must reflect what the character is doing right now.
+    2. Keep it human, casual, and in-character.
+    
+    **OUTPUT JSON:**
+    { "content": "Text...", "tags": ["tag"], "likes": 5 }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: GENERATION_MODEL,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { 
+                responseMimeType: "application/json", 
+                temperature: 1.0, 
+                maxOutputTokens: 1000 
+            }
+        });
+
+        const result = JSON.parse(response.text || "{}");
+        
+        return {
+            id: crypto.randomUUID(), 
+            authorName: candidate.name,
+            content: result.content || "...",
+            likes: result.likes || 0,
+            tags: result.tags || []
+        };
+    } catch (e) {
+        console.error("Individual Post Gen Error", e);
+        return { content: "...", likes: 0 };
     }
 };
 

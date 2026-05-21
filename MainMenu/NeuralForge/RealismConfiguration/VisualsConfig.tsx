@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { InputField } from './SharedComponents';
-import { User, Activity, ScanFace, Ruler, Shirt, Info, Layers, CircleDot, UserCheck } from 'lucide-react';
-import { t } from '../../../../services/translationService';
+import { Activity, ScanFace, Ruler, Shirt, Layers } from 'lucide-react';
 
 interface VisualsConfigProps {
     formData: Partial<Character>;
@@ -49,48 +48,54 @@ export const VisualsConfig: React.FC<VisualsConfigProps> = ({ formData, setFormD
 
     // --- COMPILATION LOGIC ---
     useEffect(() => {
-        let buildString = "";
-        
-        if (anatomyType === 'Female') {
-            const chestPart = cupSize ? `${cupSize}-Cup` : '';
-            const chestFull = [chestPart, chestDesc ? `(${chestDesc})` : ''].filter(Boolean).join(' ');
-            const lowerBody = [waist ? `Waist: ${waist}` : '', hips ? `Hips: ${hips}` : ''].filter(Boolean).join('. ');
-            
-            const parts = [
-                curves ? `${curves} Silhouette` : (formData.appearance?.build?.split('.')[0] || "Average"),
-                chestFull ? `Chest: ${chestFull}` : '',
-                lowerBody,
-                musculature ? `Musculature: ${musculature}` : ''
-            ].filter(Boolean).join('. ');
-            
-            // Only update if changed to avoid loop
-            if (parts !== formData.appearance?.build && (cupSize || waist || hips)) {
-                setFormData({ ...formData, appearance: { ...formData.appearance!, build: parts } });
-            }
-        } else if (anatomyType === 'Male') {
-            const parts = [
-                formData.appearance?.build?.split('.')[0] || "Average",
-                chestDesc ? `Chest: ${chestDesc}` : '',
-                musculature ? `Physique: ${musculature}` : '',
-                waist ? `Waist: ${waist}` : ''
-            ].filter(Boolean).join('. ');
+        setFormData(prev => {
+            if (anatomyType === 'Female') {
+                const chestPart = cupSize ? `${cupSize}-Cup` : '';
+                const chestFull = [chestPart, chestDesc ? `(${chestDesc})` : ''].filter(Boolean).join(' ');
+                const lowerBody = [waist ? `Waist: ${waist}` : '', hips ? `Hips: ${hips}` : ''].filter(Boolean).join('. ');
+                
+                const parts = [
+                    curves ? `${curves} Silhouette` : (prev.appearance?.build?.split('.')[0] || "Average"),
+                    chestFull ? `Chest: ${chestFull}` : '',
+                    lowerBody,
+                    musculature ? `Musculature: ${musculature}` : ''
+                ].filter(Boolean).join('. ');
+                
+                if (parts !== prev.appearance?.build && (cupSize || waist || hips)) {
+                    return { ...prev, appearance: { ...prev.appearance!, build: parts } };
+                }
+            } else if (anatomyType === 'Male') {
+                const parts = [
+                    prev.appearance?.build?.split('.')[0] || "Average",
+                    chestDesc ? `Chest: ${chestDesc}` : '',
+                    musculature ? `Physique: ${musculature}` : '',
+                    waist ? `Waist: ${waist}` : ''
+                ].filter(Boolean).join('. ');
 
-             if (chestDesc || musculature) {
-                setFormData({ ...formData, appearance: { ...formData.appearance!, build: parts } });
-             }
-        }
-    }, [cupSize, chestDesc, waist, hips, curves, musculature, anatomyType]);
+                 if (parts !== prev.appearance?.build && (chestDesc || musculature)) {
+                    return { ...prev, appearance: { ...prev.appearance!, build: parts } };
+                 }
+            }
+            return prev;
+        });
+    }, [cupSize, chestDesc, waist, hips, curves, musculature, anatomyType, setFormData]);
 
     // Head Compilation (Simple append if not exists)
     useEffect(() => {
-        if (headShape || jawline) {
-            let feat = formData.appearance?.features || '';
-            // Basic replacement logic or append
-            if (!feat.includes('Face Shape:') && headShape) feat += ` Face Shape: ${headShape}.`;
-            if (!feat.includes('Jawline:') && jawline) feat += ` Jawline: ${jawline}.`;
-            // Note: Full parsing/replacement for features is complex, doing simple append for now or manual edit
+        if (headShape || jawline || skin) {
+            setFormData(prev => {
+                let feat = prev.appearance?.features || '';
+                if (!feat.includes('Face Shape:') && headShape) feat += ` Face Shape: ${headShape}.`;
+                if (!feat.includes('Jawline:') && jawline) feat += ` Jawline: ${jawline}.`;
+                if (!feat.includes('Skin:') && skin) feat += ` Skin: ${skin}.`;
+                
+                if (feat !== prev.appearance?.features) {
+                    return { ...prev, appearance: { ...prev.appearance!, features: feat } };
+                }
+                return prev;
+            });
         }
-    }, [headShape, jawline]);
+    }, [headShape, jawline, skin, setFormData]);
 
 
     return (

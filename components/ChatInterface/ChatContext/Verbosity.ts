@@ -28,43 +28,53 @@ export const getVerbosityProfile = (level: VerbosityLevel): VerbosityProfile => 
     switch (level) {
         case 'concise':
             return {
-                maxTokens: 150, // Sangat ketat (~2-3 kalimat)
-                tempModifier: -0.1, // Sedikit lebih kaku/fokus
+                maxTokens: 350, // Batas atas dari 250-350 token
+                tempModifier: -0.1,
                 systemInjection: `
 [SYSTEM OVERRIDE: CONCISE MODE]
-1. **Length Constraint:** You MUST reply in 1-3 sentences maximum.
-2. **Content:** Cut all filler. No internal monologues. No descriptions of the environment unless critical.
-3. **Format:** Focus purely on Action and Dialogue.
-4. **Context:** Keep the core meaning intact but strip all decorative language. Be direct and fast-paced.
+1. **Length Constraint:** Aim for a concise response (around 250-350 tokens).
+2. **Content:** PURE DIALOGUE ONLY. ABSOLUTELY DO NOT use asterisks (*) for actions or descriptions. Do not include internal monologues, environment descriptions, or extra story.
+3. **Format:** Just speak directly to the user without any narrative formatting. Output dialogue directly without asterisks.
+`
+            };
+            
+        case 'short':
+            return {
+                maxTokens: 500, // Batas atas
+                tempModifier: -0.05,
+                systemInjection: `
+[SYSTEM OVERRIDE: SHORT MODE]
+1. **Length Constraint:** Aim for a short response (around 350-500 tokens).
+2. **Content:** PURE DIALOGUE ONLY. ABSOLUTELY DO NOT use asterisks (*) for actions or descriptions. Keep it conversational but strictly focused on what is being spoken.
+3. **Format:** Just speak directly to the user without any narrative formatting or actions inside asterisks.
 `
             };
 
         case 'long': // Detailed Mode
             return {
-                maxTokens: 1024, // Memberikan ruang untuk deskripsi panjang
-                tempModifier: 0.1, // Sedikit lebih kreatif/deskriptif
+                maxTokens: 1440, // Batas atas dari 720-1440 token
+                tempModifier: 0.1,
                 systemInjection: `
 [SYSTEM OVERRIDE: IMMERSIVE/DETAILED MODE]
-1. **Length Constraint:** Elaborate fully. Minimum 4-5 sentences.
-2. **Structure:** You MUST include:
-   - **Internal Monologue:** Show what you are thinking/feeling inside (use *italic* or specific formatting).
-   - **Sensory Details:** Describe the atmosphere, sights, sounds, or physical sensations.
-   - **Action & Dialogue:** React physically to the user before speaking.
-3. **Context:** Expand on the conversation topics deeply. Do not just answer; reflect and engage.
+1. **Length Constraint:** Elaborate extensively. Write a very long and highly detailed response (aim for 720-1440 tokens).
+2. **Structure:** You MUST include exhaustive details:
+   - **Internal Monologue:** Deeply explore what you are thinking and feeling.
+   - **Sensory Details:** Over-describe the atmosphere, sights, sounds, and every minor physical sensation.
+   - **Action & Dialogue:** Mix heavy, slow-paced narrative actions using asterisks (*) with dialogue. It is okay if it feels overly long, slow, or even boringly descriptive.
+3. **Context:** Expand on every minor detail of the conversation and environment. Provide rich narrative using asterisks.
 `
             };
 
-        case 'short': // Normal Mode
-        case 'medium': // Fallback for legacy
+        case 'medium': // Normal Mode
         default:
             return {
-                maxTokens: 500,
+                maxTokens: 720, // Batas atas dari 350-720 token
                 tempModifier: 0,
                 systemInjection: `
-[SYSTEM OVERRIDE: BALANCED MODE]
-1. **Length Constraint:** Standard conversational length (2-4 sentences).
-2. **Content:** Balance dialogue with brief actions.
-3. **Context:** Respond naturally like a human chatting. Do not be too brief, but do not write a novel.
+[SYSTEM OVERRIDE: NORMAL/BALANCED MODE]
+1. **Length Constraint:** Standard conversational length (aim for 350-720 tokens).
+2. **Content:** A balanced mix of dialogue and action. MUST use asterisks (*) for actions and physical descriptions.
+3. **Context:** Respond naturally. Do not be too brief, but do not over-describe or make it too detailed. Keep the pacing steady and balanced. Incorporate *actions and feelings* seamlessly.
 `
             };
     }

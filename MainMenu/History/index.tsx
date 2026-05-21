@@ -7,9 +7,7 @@ import { t } from '../../services/translationService';
 
 interface HistoryPageProps {
   onLoadStory: (characterId: string, session: ChatSession, charState?: { name: string, avatar: string }) => void;
-  sessions: Record<string, ChatSession>;
   characters: Character[];
-  onSelectGroup: (sessionId: string) => void;
 }
 
 const PRESET_COLORS = [
@@ -23,9 +21,10 @@ const PRESET_COLORS = [
     { hex: '#71717a', name: 'Zinc' },
 ];
 
-export const HistoryPage: React.FC<HistoryPageProps> = ({ onLoadStory, sessions, characters, onSelectGroup }) => {
+export const HistoryPage: React.FC<HistoryPageProps> = ({ onLoadStory, characters }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Modal States
   const [storyToDelete, setStoryToDelete] = useState<string | null>(null);
@@ -36,7 +35,10 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onLoadStory, sessions,
   const [editColor, setEditColor] = useState('');
 
   // Load stories directly
-  const allStories = useMemo(() => getSavedStories(), [storyToDelete, editingStory]);
+  const allStories = useMemo(() => {
+      void refreshKey;
+      return getSavedStories();
+  }, [refreshKey]);
   
   // --- SEPARATION LOGIC ---
   
@@ -134,7 +136,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onLoadStory, sessions,
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredGroups = groupsWithHistory.filter(g => 
+  const filteredGroups = groupsWithHistory.filter(() => 
       // Search by "Group" or specifically if we had named groups
       searchTerm ? "group simulation".includes(searchTerm.toLowerCase()) : true
   );
@@ -168,6 +170,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onLoadStory, sessions,
       if (storyToDelete) {
           deleteSavedStory(storyToDelete);
           setStoryToDelete(null);
+          setRefreshKey(prev => prev + 1);
           // If it was the last story, close modal
           if (selectedData && selectedData.stories.length <= 1) {
               setSelectedCharId(null);
@@ -191,6 +194,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onLoadStory, sessions,
           };
           updateSavedStory(updated);
           setEditingStory(null);
+          setRefreshKey(prev => prev + 1);
       }
   };
 

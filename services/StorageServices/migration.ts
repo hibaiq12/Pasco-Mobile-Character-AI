@@ -147,7 +147,7 @@ export const exportData = async (exportName?: string) => {
 // --- IMPORT FUNCTION ---
 export const importData = async (file: File): Promise<any | null> => {
     try {
-        let finalData: any = {
+        const finalData: any = {
             characters: [],
             sessions: {},
             history: [],

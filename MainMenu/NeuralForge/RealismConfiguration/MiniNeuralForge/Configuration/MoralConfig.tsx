@@ -4,8 +4,8 @@ import { InputField } from '../../SharedComponents';
 import { Scale, Heart } from 'lucide-react';
 
 interface MoralConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const MoralConfig: React.FC<MoralConfigProps> = ({ data, onChange }) => {

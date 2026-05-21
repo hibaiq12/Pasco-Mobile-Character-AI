@@ -19,5 +19,5 @@ export const HiyoriKanade: Character = {
     lore: { backstory: "Model student.", secrets: "Wears sexy underwear.", allies: "You", enemies: "Bullies", userRelationship: "Neighbor" },
     memory: { memories: [], obsessions: "You" },
     scenario: { currentLocation: "Bedroom", currentActivity: "Studying", startTime: { year: '2024', month: '09', day: '01', hour: '20', minute: '00' } },
-    modelConfig: { modelName: 'gemini-2.5-flash', temperature: 0.7 }
+    modelConfig: { modelName: 'gemini-3.1-flash-lite-preview', temperature: 0.7 }
 };

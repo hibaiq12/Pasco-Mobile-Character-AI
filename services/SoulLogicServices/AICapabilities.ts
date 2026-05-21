@@ -23,7 +23,7 @@ export const playTextToSpeech = async (text: string, voiceName: string = 'Kore')
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-tts",
+            model: "gemini-3.1-flash-lite-preview",
             contents: [{ parts: [{ text: text }] }],
             config: {
                 responseModalities: [Modality.AUDIO],

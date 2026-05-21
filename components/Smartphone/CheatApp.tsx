@@ -30,7 +30,7 @@ export const CheatApp: React.FC<CheatAppProps> = ({ onNavigate, activeCharacterI
         if (activeCharacterId) {
             const char = participants.find(p => p.id === activeCharacterId);
             if (char) {
-                setActiveCharName(char.name);
+                setTimeout(() => setActiveCharName(char.name), 0);
             }
         }
     }, [activeCharacterId, participants]);

@@ -1,12 +1,12 @@
 
 // ... (imports remain the same)
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Character, Message, ChatSession, OutfitItem } from '../types';
 import { generateCharacterResponse, generateGroupResponse, generateNPCResponse } from '../services/geminiService';
 import { saveSession, getSettings, saveStorySnapshot, saveCharacter } from '../services/storageService'; 
 import { Smartphone, PhoneNotification } from './Smartphone/index';
 import { addPhoneMessage, PhoneMessage, getSmartphoneData, saveSmartphoneData, initSmartphoneData, JOBS_DATA, updateWalletBalance, claimJobSalary } from '../services/smartphoneStorage'; 
-import { Send, Image as ImageIcon, ArrowLeft, Save, RotateCw, Edit3, RefreshCw, Smartphone as SmartphoneIcon, PanelRight, X, Clock, MapPin, AlignJustify, Play, Zap, Check, Brain, Activity, Sparkles, RotateCcw, AlertTriangle, Cpu, Terminal, CheckCircle, Power, Briefcase, FastForward } from 'lucide-react';
+import { Send, ImageIcon, ArrowLeft, RotateCw, Edit3, RefreshCw, Smartphone as SmartphoneIcon, PanelRight, Clock, Activity, Brain, RotateCcw, Zap, Check, Briefcase, FastForward } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 // Added comment for fix: Pointing to the new refactored ChatContext directory's index file to avoid "not a module" error
 import { ChatContext } from './ChatInterface/ChatContext/index';
@@ -26,7 +26,6 @@ interface PendingOrder {
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, initialSession, onBack, onNavigateToSettings }) => {
-  const settings = getSettings();
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null); 
@@ -60,7 +59,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   // Sidebar & Panels
   const [showPhone, setShowPhone] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(false); // Mobile Toggle
-  const [showProfilePopup, setShowProfilePopup] = useState(false);
 
   // Working Mode State
   const [isWorking, setIsWorking] = useState(false);
@@ -73,7 +71,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   const [isRebootSuccess, setIsRebootSuccess] = useState(false); // New State for Success Animation
 
   // Context Settings
-  const [currentLocation, setCurrentLocation] = useState(participants[0]?.scenario?.currentLocation || 'Unknown');
+  const [currentLocation] = useState(participants[0]?.scenario?.currentLocation || 'Unknown');
   const [responseLength, setResponseLength] = useState<'concise' | 'short' | 'medium' | 'long'>('concise');
   
   const [timeSkip, setTimeSkip] = useState({ d: '0', h: '0', m: '0', s: '0' });
@@ -84,7 +82,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
   const [outfits, setOutfits] = useState<OutfitItem[]>([]);
 
   // Phone Interaction State
-  const [isTimePaused, setIsTimePaused] = useState(false);
+  const [isTimePaused] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [notifications, setNotifications] = useState<PhoneNotification[]>([]);
   const [lastPhoneUpdate, setLastPhoneUpdate] = useState(Date.now()); 
@@ -123,7 +121,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
           // We only save to local storage, not triggering a full app refresh unless needed
           saveCharacter(updatedChar);
       }
-  }, [currentLocation]);
+  }, [currentLocation, isGroup, activeChar]);
 
   // Job Check Effect (Runs every 2s virtual time tick logic)
   useEffect(() => {
@@ -157,7 +155,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
           setCurrentJobId(null);
       }
 
-  }, [Math.floor(virtualTime / 60000)]); // Check every virtual minute
+  }, [virtualTime, activeChar, isWorking, handleWorkComplete]); // Check every virtual minute
 
   useEffect(() => {
     scrollToBottom();
@@ -167,7 +165,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       if (messages.length === 0 && !isTyping) {
           triggerAiResponse(true);
       }
-  }, []);
+  }, [messages.length, isTyping, triggerAiResponse]);
 
   // Order Arrivals
   useEffect(() => {
@@ -202,7 +200,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
 
   // --- LOGIC HANDLERS ---
 
-  const handleWorkComplete = () => {
+  const handleWorkComplete = useCallback(() => {
       if (currentJobId && activeChar) {
           const job = JOBS_DATA.find(j => j.id === currentJobId);
           if (job) {
@@ -238,14 +236,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       }
       setIsWorking(false);
       setCurrentJobId(null);
-  };
+  }, [currentJobId, activeChar, virtualTime, messages, triggerAiResponse]);
 
   const handleSkipWork = () => {
       if (currentJobId) {
           const job = JOBS_DATA.find(j => j.id === currentJobId);
           if (job) {
               const date = new Date(virtualTime);
-              let targetHour = job.endHour;
+              const targetHour = job.endHour;
               if (targetHour < date.getHours()) date.setDate(date.getDate() + 1);
               date.setHours(targetHour, 1, 0, 0);
               setVirtualTime(date.getTime());
@@ -254,7 +252,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       }
   };
 
-  const triggerAiResponse = async (isGreeting = false, overrideHistory?: Message[]) => {
+  const triggerAiResponse = useCallback(async (isGreeting = false, overrideHistory?: Message[]) => {
       setIsTyping(true);
       const hist = overrideHistory || messages;
       
@@ -333,9 +331,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       } finally {
           setIsTyping(false);
       }
-  };
+  }, [messages, virtualTime, isGroup, participants, activeChar, currentLocation, responseLength]);
 
-  const handleSendMessage = async (text?: string, image?: string) => {
+  const handleSendMessage = useCallback(async (text?: string, image?: string) => {
     const txt = text || inputText;
     const img = image || selectedImage;
     if ((!txt?.trim() && !img) || isTyping) return;
@@ -360,7 +358,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
     setVirtualTime(nextTime); 
 
     await triggerAiResponse(false, [...messages, userMsg]);
-  };
+  }, [inputText, selectedImage, isTyping, virtualTime, messages, triggerAiResponse]);
 
   // ... (Phone methods kept same)
   const handlePhoneSendMessage = async (text: string, contactId: string) => {
@@ -546,7 +544,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
       if (messages.length > 0) {
           saveStorySnapshot(activeChar, session, "Auto-Save", 'auto');
       }
-  }, [messages]);
+  }, [messages, isGroup, initialSession.characterId, activeChar, participants, virtualTime]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -738,7 +736,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="text-zinc-400 hover:text-white transition-colors"><ArrowLeft size={20} /></button>
                     {/* Header Info - Mobile Only */}
-                    <div className="flex items-center gap-3 lg:opacity-0 transition-opacity cursor-pointer lg:pointer-events-none" onClick={() => setShowProfilePopup(true)}>
+                    <div className="flex items-center gap-3 lg:opacity-0 transition-opacity cursor-pointer lg:pointer-events-none">
                          <div className="relative lg:hidden">
                             <img src={activeChar.avatar} className="w-9 h-9 rounded-full border border-zinc-700 object-cover" />
                             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-zinc-950"></div>
@@ -889,6 +887,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
                          </div>
                      )}
             </div>
+        </div>
 
             {/* Input Area */}
             <div className="p-4 md:p-6 z-20 shrink-0">
@@ -937,7 +936,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ participants, init
         <ChatContext show={showRightPanel} onClose={() => setShowRightPanel(false)} timeSkip={timeSkip} setTimeSkip={setTimeSkip}
             onApplyTimeSkip={applyTimeSkip} userLocation={userLocation} setUserLocation={setUserLocation} botLocation={botLocation}
             setBotLocation={setBotLocation} onSyncLocation={() => setUserLocation(botLocation)} characterName={activeChar?.name || 'Bot'}
-            currentLocation={currentLocation} setCurrentLocation={setCurrentLocation} responseLength={responseLength}
+            responseLength={responseLength}
             setResponseLength={setResponseLength} onManualSave={handleManualSave} outfits={outfits} setOutfits={setOutfits} />
         
         <RestartModal show={showRestartModal} isRestarting={isRestarting} isRebootSuccess={isRebootSuccess} restartProgress={restartProgress}

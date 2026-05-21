@@ -387,7 +387,7 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
     },
 
     modelConfig: { 
-        modelName: settings.defaultModel || 'gemini-2.5-flash', 
+        modelName: settings.defaultModel || 'gemini-1.5-flash', 
         temperature: settings.defaultTemperature || 0.7 
     }
   });
@@ -548,7 +548,7 @@ export const TheForge: React.FC<TheForgeProps> = ({ initialData, onSave, onCance
       while (attempt < maxRetries) {
         try {
             const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
+                model: "gemini-1.5-flash",
                 contents: `You are a creative character writer. Based on this partial character data: ${JSON.stringify(formData)}, generate a JSON object for the '${targetKey}' property. Make it realistic and coherent.`,
                 config: { responseMimeType: "application/json" }
             });

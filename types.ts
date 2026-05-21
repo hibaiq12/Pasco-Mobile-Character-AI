@@ -2,29 +2,21 @@
 export interface Character {
   id: string;
   name: string;
-  description: string; // Short description for cards
-  avatar: string; // Base64 string
-  systemInstruction: string; // The final compiled prompt used by the AI
-  
-  // --- NEURAL FORGE V1.5 DATA STRUCTURE (12 MODULES) ---
-  
-  // 1. Identity Core
+  description: string;
+  avatar: string;
+  systemInstruction: string;
   age: string;
-  birthday?: string; // DD:MM:YYYY
+  birthday?: string;
   gender: string;
   species: string; 
   originWorld: string; 
   role: string;
-  
-  // 2. Visuals & Shell (Appearance)
   appearance: {
     height: string;
     build: string;
-    features: string; // Face, eyes, hair
-    style: string; // Clothing style
+    features: string;
+    style: string;
   };
-
-  // 3. Voice & Speech (Communication)
   communication: {
     style: 'formal' | 'casual' | 'slang' | 'poetic' | 'cryptic' | 'military' | 'intimate';
     sentenceLength: 'short' | 'balanced' | 'verbose'; 
@@ -38,54 +30,40 @@ export interface Character {
         tone: string;
     };
   };
-
-  // 4. Psychometrics (The Big 5)
   psychometrics: {
     openness: number;
     conscientiousness: number;
     extraversion: number;
     agreeableness: number;
     neuroticism: number;
-    decisionStyle: number; // Logic vs Emotion
-    empathy: number; // Cold vs Warm
+    decisionStyle: number;
+    empathy: number;
   };
-
-  // 5. Emotional Spectrum (Triggers & Stability)
   emotionalProfile: {
-    stability: string; // e.g. Volatile, Stoic
+    stability: string;
     joyTriggers: string;
     angerTriggers: string;
     sadnessTriggers: string;
   };
-
-  // 6. Moral Compass (Ethics)
   moralProfile: {
-    alignment: string; // D&D Alignment
-    values: string; // What they believe in
-    philosophy: string; // Nihilism, Utilitarianism, etc.
+    alignment: string;
+    values: string;
+    philosophy: string;
   };
-
-  // 7. Social Dynamics (Interaction Style)
   socialProfile: {
-    socialBattery: string; // Introvert/Extrovert energy
-    trustFactor: string; // How easily they trust
-    interactionStyle: string; // Manipulative, Supportive, Distant
+    socialBattery: string;
+    trustFactor: string;
+    interactionStyle: string;
   };
-
-  // 8. Dual Nature (Conflict)
   duality: {
     mask: string;      
     core: string;      
     breakingPoint: string;
   };
-
-  // 9. Capabilities (Skills & Flaws)
   capabilities: {
-    skills: string; // Expertises
-    flaws: string; // Physical or mental weaknesses
+    skills: string;
+    flaws: string;
   };
-
-  // 10. Deep Lore (History)
   lore: {
     backstory: string;
     secrets: string;
@@ -93,17 +71,13 @@ export interface Character {
     enemies: string; 
     userRelationship: string;
   };
-
-  // 11. Memory Cortex (Anchors)
   memory: {
-    memories: string[]; // Key life events
-    obsessions: string; // Current fixations
+    memories: string[];
+    obsessions: string;
   };
-
-  // 12. Scenario Setup (Current Context)
   scenario: {
     currentLocation: string;
-    currentActivity: string; // What are they doing right now?
+    currentActivity: string;
     startTime: {
         year: string;
         month: string;
@@ -112,13 +86,10 @@ export interface Character {
         minute: string;
     };
   };
-  
-  // Technical Config
   modelConfig: {
     modelName: string;
     temperature: number;
   };
-  
   lastMessage?: string;
   lastUpdated?: number;
 }
@@ -127,20 +98,20 @@ export interface Message {
   id: string;
   role: 'user' | 'model';
   text: string;
-  timestamp: number; // The Virtual Time when this message was sent
+  timestamp: number;
   image?: string;
   isSystemEvent?: boolean;
-  speakerName?: string; // For Group Chat: Which character is speaking
-  speakerAvatar?: string; // For Group Chat
+  speakerName?: string;
+  speakerAvatar?: string;
 }
 
 export interface ChatSession {
-  characterId: string; // Primary ID or Group ID
-  isGroup?: boolean; // New flag for group chats
-  participants?: string[]; // IDs of characters in the group
+  characterId: string;
+  isGroup?: boolean;
+  participants?: string[];
   messages: Message[];
-  lastUpdated: number; // Real-world timestamp
-  virtualTime: number; // The current time inside the chat world
+  lastUpdated: number;
+  virtualTime: number;
 }
 
 export interface SavedStory {
@@ -149,10 +120,10 @@ export interface SavedStory {
   characterName: string;
   avatar: string;
   saveName: string;
-  color?: string; // Custom badge color for the save name
-  savedAt: number; // Real world time
+  color?: string;
+  savedAt: number;
   sessionData: ChatSession;
-  type?: 'manual' | 'auto'; // NEW: Track save type
+  type?: 'manual' | 'auto';
 }
 
 export interface AppSettings {
@@ -160,21 +131,35 @@ export interface AppSettings {
   defaultModel: string;
   defaultTemperature: number;
   enableHaptic: boolean;
-  koboldUrl: string;
+  ollamaUrl: string;
+  ollamaModel?: string;
+  ollamaApiKey?: string;
+  koboldUrl?: string;
+  koboldModel?: string;
   openRouterKey: string;
-  openRouterModel: string; // Added OpenRouter Model
+  openRouterModel: string;
   tokenMode: 'auto' | 'manual';
   maxOutputTokens: number;
-  enablePreviewMode: boolean; // Developer setting to disable AI
-  
-  // NEW: Maintenance Mode Developer Flags
+  enablePreviewMode: boolean;
+  disableDisclaimerCountdown?: boolean; 
+  disableChangelog?: boolean; 
+  disableChangelogTimer?: boolean; // New Setting for Changelog Timer
   devForceMaintenance?: boolean;
   devForceUpdate?: boolean;
   devForceCountdown?: boolean;
-  
-  // NEW: Language Settings
-  appLanguage: string; // Controls UI text generation and system messages (e.g. 'en', 'id')
-  chatLanguage: string; // Controls the character's speaking language
+  appLanguage: string;
+  chatLanguage: string;
+  showFps?: boolean;
+  fpsPosition?: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' | 'discord';
+  fpsSize?: number; // 0, 1, 2, 3 corresponding to 10%, 25%, 50%, 100%
+  cursorType?: 'default' | 'tactical';
+  cursorColor?: string;
+  enableMobileGesture?: boolean;
+  disableNeuroAnimations?: boolean;
+  fastAnimations?: boolean;
+  disableBlur?: boolean;
+  fullscreenTaps?: number;
+  fullscreenTime?: number;
 }
 
 export enum ViewState {
@@ -183,6 +168,7 @@ export enum ViewState {
   CHAT = 'CHAT',
   SETTINGS = 'SETTINGS',
   HISTORY = 'HISTORY',
+  PREVIEW = 'PREVIEW'
 }
 
 export interface ModelOption {
@@ -199,7 +185,6 @@ export interface StoryConfiguration {
     genres: string[];
 }
 
-// Visual Wardrobe
 export interface OutfitItem {
     id: string;
     target: 'user' | 'char';

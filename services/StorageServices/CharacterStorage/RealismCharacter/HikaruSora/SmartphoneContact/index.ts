@@ -1,26 +1,29 @@
 
 import { Contact } from "../../../../../smartphoneStorage";
+import { AmagiHyuga } from './AmagiHyuga';
+import { TomaKanzaki } from './TomaKanzaki';
+import { YuumaKanade } from './YuumaKanade';
+import { MikaShirasaki } from './MikaShirasaki';
+import { KeisukeShindou } from './KeisukeShindou';
+import { RikuHayashi } from './RikuHayashi';
 
 const MamaSora: Contact = {
     id: 'contact_hikaru_mom',
     name: 'Mama ❤️',
     avatar: 'https://api.dicebear.com/7.x/micah/svg?seed=MamaSora&backgroundColor=ffdfbf',
-    lastMessage: 'Jangan lupa jaketnya dipake! Nanti masuk angin lho.',
+    lastMessage: 'Jangan lupa jaketnya dipake! Nanti masuk angin lho. Dan jangan pulang malam-malam, kamu anak gadis.',
     timestamp: Date.now() - 3600000,
     unread: 1,
     isSystem: true,
-    description: "Hikaru's mom. Very protective and treats him like a baby."
+    description: "Hikaru's mom. Very protective and treats her like a baby."
 };
 
-const RyuGaming: Contact = {
-    id: 'contact_ryu',
-    name: 'Ryu (Mabar)',
-    avatar: 'https://api.dicebear.com/7.x/micah/svg?seed=Ryu&backgroundColor=c0cbdc',
-    lastMessage: 'Login oi! Rank push!',
-    timestamp: Date.now() - 7200000,
-    unread: 3,
-    isSystem: true,
-    description: "Hikaru's gaming buddy. A bit toxic but fun."
-};
-
-export const HIKARU_CONTACTS = [MamaSora, RyuGaming];
+export const HIKARU_CONTACTS = [
+    MamaSora,
+    AmagiHyuga,
+    TomaKanzaki,
+    YuumaKanade,
+    MikaShirasaki,
+    KeisukeShindou,
+    RikuHayashi
+];

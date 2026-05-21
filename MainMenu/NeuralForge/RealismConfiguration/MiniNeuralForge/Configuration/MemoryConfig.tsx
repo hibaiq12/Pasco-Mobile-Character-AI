@@ -4,8 +4,8 @@ import { InputField } from '../../SharedComponents';
 import { Brain, Zap } from 'lucide-react';
 
 interface MemoryConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const MemoryConfig: React.FC<MemoryConfigProps> = ({ data, onChange }) => {

@@ -43,9 +43,9 @@ export const RealismUserConfigModal: React.FC<RealismUserConfigModalProps> = ({ 
             
             setAge(calculatedAge.toString());
 
-            // Hiyori Rule: 16-17 only
-            if (calculatedAge < 16 || calculatedAge > 17) {
-                setError("Sinkronisasi Skenario Gagal: Usia harus 16-17 tahun.");
+            // Rule: 15-17 only
+            if (calculatedAge < 15 || calculatedAge > 17) {
+                setError("Sinkronisasi Skenario Gagal: Usia harus 15-17 tahun.");
             } else {
                 setError(null);
             }
@@ -76,8 +76,8 @@ export const RealismUserConfigModal: React.FC<RealismUserConfigModalProps> = ({ 
         if (m < 0 || (m === 0 && 15 < birth.getDate())) {
             calculatedAge--;
         }
-        if (calculatedAge < 16 || calculatedAge > 17) {
-            setError("Sinkronisasi Skenario Gagal: Usia harus 16-17 tahun.");
+        if (calculatedAge < 15 || calculatedAge > 17) {
+            setError("Sinkronisasi Skenario Gagal: Usia harus 15-17 tahun.");
             return;
         }
 

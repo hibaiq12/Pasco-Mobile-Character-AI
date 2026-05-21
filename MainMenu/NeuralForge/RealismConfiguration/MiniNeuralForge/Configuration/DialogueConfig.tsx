@@ -4,8 +4,8 @@ import { InputField } from '../../SharedComponents';
 import { MessageSquare, Quote } from 'lucide-react';
 
 interface DialogueConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const DialogueConfig: React.FC<DialogueConfigProps> = ({ data, onChange }) => {

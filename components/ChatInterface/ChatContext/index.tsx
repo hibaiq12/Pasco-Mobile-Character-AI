@@ -9,14 +9,12 @@ interface ChatContextProps {
     show: boolean;
     onClose: () => void;
     timeSkip: { d: string, h: string, m: string, s: string };
-    setTimeSkip: (val: any) => void;
+    setTimeSkip: (val: { d: string, h: string, m: string, s: string }) => void;
     onApplyTimeSkip: () => void;
     userLocation: string;
     setUserLocation: (val: string) => void;
     botLocation: string;
     setBotLocation: (val: string) => void;
-    currentLocation: string; 
-    setCurrentLocation: (val: string) => void;
     onSyncLocation: () => void;
     responseLength: string;
     setResponseLength: (val: 'concise' | 'short' | 'medium' | 'long') => void;
@@ -24,6 +22,8 @@ interface ChatContextProps {
     characterName: string;
     outfits?: OutfitItem[];
     setOutfits?: (items: OutfitItem[]) => void;
+    isTimePaused?: boolean;
+    setIsTimePaused?: (val: boolean) => void;
 }
 
 const VERBOSITY_LEVELS = [
@@ -55,7 +55,8 @@ export const ChatContext: React.FC<ChatContextProps> = ({
     onSyncLocation,
     responseLength, setResponseLength,
     onManualSave, characterName,
-    outfits = [], setOutfits
+    outfits = [], setOutfits,
+    isTimePaused = false, setIsTimePaused
 }) => {
     // State to toggle views
     const [view, setView] = useState<'main' | 'wardrobe'>('main');
@@ -64,12 +65,19 @@ export const ChatContext: React.FC<ChatContextProps> = ({
     const isUserWorking = userLocation === 'Bekerja';
 
     const handleTimeChange = (field: string, value: string) => {
-        if (!/^\d*$/.test(value)) return;
-        setTimeSkip({ ...timeSkip, [field]: value });
+        // Allow empty string to let user delete current value, otherwise number
+        if (value === '' || /^\d+$/.test(value)) {
+            setTimeSkip({ ...timeSkip, [field]: value });
+        }
+    };
+
+    const handleAdvanceTime = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onApplyTimeSkip();
     };
 
     // Calculate current slider index (0, 1, 2)
-    // Fallback: If data is 'medium' or invalid, default to 1 (Short/Normal)
     const currentVerbosityIndex = useMemo(() => {
         const idx = VERBOSITY_LEVELS.findIndex(v => v.id === responseLength);
         return idx === -1 ? 1 : idx;
@@ -84,7 +92,7 @@ export const ChatContext: React.FC<ChatContextProps> = ({
     return (
         <div className={`
             fixed lg:static top-0 right-0 h-full w-80 z-50 lg:z-10 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-white/5
-            bg-black/85 backdrop-blur-xl lg:bg-zinc-950/60 lg:backdrop-blur-xl
+            bg-black/95 backdrop-blur-xl lg:bg-zinc-950/60 lg:backdrop-blur-xl
             ${show ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}>
             {/* Header - Conditional based on view */}
@@ -108,19 +116,38 @@ export const ChatContext: React.FC<ChatContextProps> = ({
                     /* === MAIN CONTEXT VIEW === */
                     <div className="animate-fade-in space-y-8">
                         <div>
-                            <h4 className="text-[10px] font-bold text-zinc-500 uppercase mb-3 flex items-center gap-2"><Clock size={12}/> {t('ctx.time')}</h4>
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="text-[10px] font-bold text-zinc-500 uppercase flex items-center gap-2"><Clock size={12}/> {t('ctx.time') || 'Waktu'}</h4>
+                                <button 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (setIsTimePaused) setIsTimePaused(!isTimePaused);
+                                    }}
+                                    className={`px-3 py-1 rounded-full text-[9px] font-bold flex items-center gap-1 transition-all shadow-lg active:scale-95 ${isTimePaused ? 'bg-rose-500 text-white shadow-rose-500/20' : 'bg-transparent border border-white/10 text-zinc-400 hover:border-[#9600FF]/50 hover:text-[#9600FF]'}`}
+                                >
+                                    {isTimePaused ? (
+                                        <>Resume</>
+                                    ) : (
+                                        <>Pause</>
+                                    )}
+                                </button>
+                            </div>
                             <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5">
                                 <div className="grid grid-cols-4 gap-1 mb-2 text-[9px] text-zinc-500 font-mono text-center tracking-wider"><div>DAY</div><div>HR</div><div>MIN</div><div>SEC</div></div>
                                 <div className="flex items-center gap-1 bg-black/30 border border-zinc-700 rounded-lg p-1 mb-3">
-                                    <input type="text" value={timeSkip.d === '0' ? '' : timeSkip.d} onChange={(e) => handleTimeChange('d', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
+                                    <input type="text" value={timeSkip.d} onChange={(e) => handleTimeChange('d', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
                                     <span className="text-zinc-700 font-bold">:</span>
-                                    <input type="text" value={timeSkip.h === '0' ? '' : timeSkip.h} onChange={(e) => handleTimeChange('h', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
+                                    <input type="text" value={timeSkip.h} onChange={(e) => handleTimeChange('h', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
                                     <span className="text-zinc-700 font-bold">:</span>
-                                    <input type="text" value={timeSkip.m === '0' ? '' : timeSkip.m} onChange={(e) => handleTimeChange('m', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
+                                    <input type="text" value={timeSkip.m} onChange={(e) => handleTimeChange('m', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
                                     <span className="text-zinc-700 font-bold">:</span>
-                                    <input type="text" value={timeSkip.s === '0' ? '' : timeSkip.s} onChange={(e) => handleTimeChange('s', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
+                                    <input type="text" value={timeSkip.s} onChange={(e) => handleTimeChange('s', e.target.value)} className="w-full bg-transparent text-center text-sm font-mono text-white outline-none p-1 placeholder-zinc-700 focus:placeholder-transparent" placeholder="0" />
                                 </div>
-                                <button onClick={onApplyTimeSkip} className="w-full bg-zinc-800 hover:bg-violet-600 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-2 uppercase tracking-wide transition-all shadow-lg active:scale-95 group">
+                                <button 
+                                    onClick={handleAdvanceTime} 
+                                    className="w-full bg-zinc-800 hover:bg-violet-600 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-2 uppercase tracking-wide transition-all shadow-lg active:scale-95 group cursor-pointer"
+                                >
                                     Advance Time <Play size={10} fill="currentColor" className="group-hover:translate-x-0.5 transition-transform"/>
                                 </button>
                             </div>
@@ -167,12 +194,9 @@ export const ChatContext: React.FC<ChatContextProps> = ({
                             <h4 className="text-[10px] font-bold text-zinc-500 uppercase mb-3 flex items-center gap-2"><Shirt size={12}/> {t('ctx.wardrobe')}</h4>
                             <button 
                                 onClick={() => setView('wardrobe')}
-                                className="w-full bg-zinc-900/50 border border-white/10 hover:bg-zinc-800 text-zinc-300 p-3 rounded-xl flex items-center justify-between group transition-colors"
+                                className="w-full bg-zinc-900/50 border border-white/10 hover:bg-zinc-800 text-zinc-300 p-3 rounded-xl flex items-center justify-center group transition-colors"
                             >
                                 <span className="text-xs font-medium">{t('ctx.wardrobe.btn')}</span>
-                                <div className="bg-zinc-800 group-hover:bg-zinc-700 p-1.5 rounded-lg transition-colors">
-                                    <AlignJustify size={14} />
-                                </div>
                             </button>
                         </div>
 

@@ -1,18 +1,27 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CharacterPhoneData, Contact, getSmartphoneData } from '../../../services/smartphoneStorage';
+import { CharacterPhoneData } from '../../../services/smartphoneStorage';
 import { 
     SocialPost, 
     getSocialData, 
     socialToggleLike, 
-    socialAddComment, 
-    socialCreatePost,
+    socialAddComment,
     socialAppendPosts,
     socialCheckReset,
     socialProcessReplies
 } from '../../../services/SmartphoneSocial';
-import { generateSocialFeedBatchAI, generateCommentReplyAI, SocialCandidate } from '../../../services/SocialMediaAlgorithm';
-import { ChevronLeft, Search, Bell, PlusSquare, Home, User } from 'lucide-react';
+import { 
+    generateSocialFeedBatchAI, 
+    generateCommentReplyAI, 
+    generateCharacterPostAI,
+    SocialCandidate 
+} from '../../../services/SocialMediaAlgorithm';
+import { generateCharacterImage } from '../../../services/Imagecreate';
+import { 
+    ChevronLeft, Search, Bell, PlusSquare, Home, User, X, 
+    Image as ImageIcon, Camera, Settings, Plus, Mail, Sparkles 
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Feed } from './Feed';
 import { CommentModal } from './CommentModal';
 import { Character } from '../../../types';
@@ -23,100 +32,38 @@ interface SocialAppProps {
     virtualTime: number;
     activeCharacterId?: string | null;
     activeCharacter?: Character | null; 
+    onShowToCharacter?: (content: string) => void;
+    onSendMessage?: (text: string, contactId: string) => void;
 }
 
-export const SocialApp: React.FC<SocialAppProps> = ({ phoneData, onNavigate, virtualTime, activeCharacterId, activeCharacter }) => {
-    const [activeTab, setActiveTab] = useState<'home' | 'search' | 'post' | 'notif' | 'profile'>('home');
-    const [viewingPost, setViewingPost] = useState<SocialPost | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+export const SocialApp: React.FC<SocialAppProps> = ({ phoneData, onNavigate, virtualTime, activeCharacterId, activeCharacter, onShowToCharacter, onSendMessage }) => {
     const [posts, setPosts] = useState<SocialPost[]>([]);
+    const [viewingProfile, setViewingProfile] = useState<string | null>(null);
+    const [showCompose, setShowCompose] = useState(false);
+    const [composeText, setComposeText] = useState('');
+    const [composeAttachment, setComposeAttachment] = useState<'none' | '16:9' | '9:16' | 'selfie'>('none');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [activeTab, setActiveTab] = useState<'For You' | 'Following'>('For You');
 
     const activeId = activeCharacterId || 'char-hiyori';
-    
-    // Track previous time to detect Time Skips
-    const prevTimeRef = useRef(virtualTime);
-    const processingRepliesRef = useRef(false);
 
-    // --- 1. INITIAL LOAD & REAL-TIME RESET CHECK ---
     useEffect(() => {
-        // Check 2-hour reset rule
         const didReset = socialCheckReset(activeId);
         const socialData = getSocialData(activeId);
         setPosts(socialData.posts);
         
-        // TRIGGER AI: If reset happened OR posts are very few (only admin post), auto load
         if (didReset || socialData.posts.length <= 1) {
             handleLoadMore(true); 
         }
     }, [activeId]);
 
-    // --- 2. TIME SKIP DETECTION & REFRESH ---
-    useEffect(() => {
-        const timeDiff = virtualTime - prevTimeRef.current;
-        const THIRTY_MINS_MS = 30 * 60 * 1000;
-
-        if (timeDiff >= THIRTY_MINS_MS) {
-            console.log("Time Skip Detected in Social App > 30 mins. Refreshing Feed.");
-            handleLoadMore(true); // Force refresh/new batch
-        }
-        
-        // --- 3. REPLY PROCESSING QUEUE ---
-        // Check pending replies every time virtualTime updates
-        processPendingReplies();
-
-        prevTimeRef.current = virtualTime;
-    }, [virtualTime]);
-
-    const processPendingReplies = async () => {
-        if (processingRepliesRef.current) return;
-        
-        const socialData = getSocialData(activeId);
-        const dueReplies = socialData.pendingReplies.filter(r => r.targetTime <= virtualTime);
-        
-        if (dueReplies.length === 0) return;
-
-        processingRepliesRef.current = true;
-        
-        // Process one by one to avoid race conditions
-        for (const reply of dueReplies) {
-            // Find NPC Description if available
-            let npcDesc = "Friendly user";
-            if (activeCharacter && reply.authorName === activeCharacter.name) {
-                npcDesc = activeCharacter.systemInstruction.slice(0, 300);
-            } else {
-                const contact = phoneData?.contacts.find(c => c.name === reply.authorName);
-                if (contact) npcDesc = contact.description || npcDesc;
-            }
-
-            const responseText = await generateCommentReplyAI(reply.postContent, reply.userComment, reply.authorName, npcDesc);
-            const updatedData = socialProcessReplies(activeId, responseText, reply.id);
-            setPosts(updatedData.posts);
-            
-            // If user is currently viewing this post, update the modal view too
-            if (viewingPost && viewingPost.id === reply.postId) {
-                const updatedPost = updatedData.posts.find(p => p.id === reply.postId);
-                if (updatedPost) setViewingPost(updatedPost);
-            }
-        }
-        
-        processingRepliesRef.current = false;
-    };
-
-    // --- 4. INFINITE SCROLL GENERATOR ---
     const handleLoadMore = async (forceRefresh = false) => {
         if (isLoading) return;
-        
-        // Limit total posts to ~50 for infinite scroll feel but ensuring performance
-        if (!forceRefresh && posts.length >= 50) {
-            return; 
-        }
-
         setIsLoading(true);
 
         try {
-            // Gather Candidates (Strictly from Contacts + Chatbot)
             const contacts = phoneData?.contacts.filter(c => !c.isSystem || c.id === 'mom' || c.id === 'dad') || []; 
-            
             const candidates: SocialCandidate[] = contacts.map(c => ({
                 id: c.id,
                 name: c.name,
@@ -133,32 +80,26 @@ export const SocialApp: React.FC<SocialAppProps> = ({ phoneData, onNavigate, vir
                 });
             }
 
-            // Fallback if no contacts yet (prevent empty loop)
             if (candidates.length === 0) {
                  setIsLoading(false);
                  return;
             }
 
-            const timeStr = new Date(virtualTime).toLocaleTimeString();
-            
             const context = {
-                time: timeStr,
-                weather: "Clear", // Idealnya ambil dari weatherService
-                userLocation: activeCharacter?.scenario?.currentLocation || "Unknown", 
-                recentEvents: "Browsing social media"
+                time: new Date(virtualTime).toLocaleTimeString(),
+                weather: "Clear",
+                userLocation: activeCharacter?.scenario?.currentLocation || "Tokyo", 
+                recentEvents: "Casual browsing"
             };
 
-            // Generate
             const generated = await generateSocialFeedBatchAI(candidates, context, posts.length);
 
-            // Map back to SocialPost objects
-            const newPosts: SocialPost[] = generated.map(gen => {
-                // Try to find matching candidate for Avatar/ID
+            const newPosts: SocialPost[] = await Promise.all(generated.map(async gen => {
                 const matchContact = contacts.find(c => c.name === gen.authorName);
                 const isMainChar = activeCharacter && activeCharacter.name === gen.authorName;
                 
                 let avatar = 'https://api.dicebear.com/7.x/identicon/svg?seed=' + gen.authorName;
-                let authorId = 'unknown_npc';
+                let authorId = 'npc';
                 let handle = `@${(gen.authorName || 'user').replace(/\s+/g, '').toLowerCase().slice(0, 10)}`;
 
                 if (matchContact) {
@@ -170,162 +111,314 @@ export const SocialApp: React.FC<SocialAppProps> = ({ phoneData, onNavigate, vir
                     handle = `@${activeCharacter.name.split(' ')[0].toLowerCase()}`;
                 }
 
+                // AI Image Handling if present in content
+                let finalContent = gen.content || '...';
+                let imgUrl = undefined;
+                const imgMatch = finalContent.match(/\[Image:\s*(.*?)\]/);
+                if (imgMatch) {
+                    const desc = imgMatch[1];
+                    imgUrl = await generateCharacterImage(desc, avatar, authorId, "16:9");
+                    finalContent = finalContent.replace(/\[Image:.*?\]/, '').trim();
+                }
+
                 return {
                     id: gen.id || crypto.randomUUID(),
                     authorId: authorId,
                     authorName: gen.authorName || 'Unknown',
                     authorHandle: handle,
                     authorAvatar: avatar,
-                    content: gen.content || '...',
+                    content: finalContent,
                     likes: gen.likes || 0,
                     isLiked: false,
-                    timestamp: virtualTime - Math.floor(Math.random() * 3600000), // Randomly slightly in past
+                    timestamp: virtualTime - Math.floor(Math.random() * 3600000),
                     comments: [],
-                    tags: gen.tags
+                    tags: gen.tags,
+                    image: imgUrl
                 };
-            });
+            }));
 
             if (newPosts.length > 0) {
                 const updatedData = socialAppendPosts(activeId, newPosts);
                 setPosts(updatedData.posts);
             }
         } catch (e) {
-            console.error("Feed Gen Error", e);
+            console.error(e);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleLike = (postId: string) => {
-        const updatedData = socialToggleLike(activeId, postId);
-        setPosts(updatedData.posts);
-        if (viewingPost && viewingPost.id === postId) {
-            const p = updatedData.posts.find(x => x.id === postId);
-            if(p) setViewingPost(p);
-        }
-    };
+    const handleCreatePost = async () => {
+        if (!composeText.trim() && composeAttachment === 'none') return;
+        setIsGenerating(true);
 
-    const handleAddComment = async (postId: string, text: string) => {
-        // Add User Comment + Schedule Reply
-        const updatedData = socialAddComment(activeId, postId, text, 'You', virtualTime);
-        setPosts(updatedData.posts);
-        
-        // Update Modal View
-        const p = updatedData.posts.find(x => x.id === postId);
-        if(p) setViewingPost(p);
-    };
+        try {
+            const newPost: SocialPost = {
+                id: crypto.randomUUID(),
+                authorId: 'user',
+                authorName: 'Me',
+                authorHandle: '@me',
+                authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=User',
+                content: composeText,
+                likes: 0,
+                isLiked: false,
+                timestamp: virtualTime,
+                comments: [],
+                tags: []
+            };
 
-    const handleCreatePost = () => {
-        const text = prompt("What's on your mind?");
-        if (text) {
-            const updatedData = socialCreatePost(activeId, text);
+            if (composeAttachment !== 'none') {
+                const desc = `User taking a photo: ${composeText}`;
+                newPost.image = await generateCharacterImage(desc, 'https://api.dicebear.com/7.x/avataaars/svg?seed=User', 'user', composeAttachment === 'selfie' ? '9:16' : composeAttachment);
+            }
+
+            const updatedData = socialAppendPosts(activeId, [newPost]);
             setPosts(updatedData.posts);
+            setShowCompose(false);
+            setComposeText('');
+            setComposeAttachment('none');
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsGenerating(false);
         }
+    };
+
+    const handleAIRespond = async () => {
+        if (!activeCharacter || isGenerating) return;
+        setIsGenerating(true);
+        try {
+            const context = {
+                time: new Date(virtualTime).toLocaleTimeString(),
+                weather: "Clear",
+                userLocation: activeCharacter.scenario?.currentLocation || "Tokyo",
+                recentEvents: "Posting update"
+            };
+
+            const genData = await generateCharacterPostAI(
+                { id: activeCharacter.id, name: activeCharacter.name, description: activeCharacter.systemInstruction.slice(0, 500) },
+                context,
+                composeAttachment
+            );
+
+            let content = genData.content || "...";
+            let imgUrl = undefined;
+
+            const imgMatch = content.match(/\[Image:\s*(.*?)\]/);
+            if (imgMatch) {
+                const desc = imgMatch[1];
+                const ratio = composeAttachment === 'selfie' ? '9:16' : (composeAttachment === 'none' ? '16:9' : composeAttachment);
+                imgUrl = await generateCharacterImage(desc, activeCharacter.avatar, activeCharacter.id, ratio as any);
+                content = content.replace(/\[Image:.*?\]/, '').trim();
+            }
+
+            const newPost: SocialPost = {
+                id: genData.id || crypto.randomUUID(),
+                authorId: activeCharacter.id,
+                authorName: activeCharacter.name,
+                authorHandle: `@${activeCharacter.name.toLowerCase().replace(/\s/g, '')}`,
+                authorAvatar: activeCharacter.avatar,
+                content: content,
+                likes: 0,
+                isLiked: false,
+                timestamp: virtualTime,
+                comments: [],
+                tags: genData.tags || [],
+                image: imgUrl
+            };
+
+            const updatedData = socialAppendPosts(activeId, [newPost]);
+            setPosts(updatedData.posts);
+            setShowCompose(false);
+            setComposeAttachment('none');
+            setComposeText('');
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleLike = (id: string) => {
+        const updatedData = socialToggleLike(activeId, id);
+        setPosts(updatedData.posts);
+    };
+
+    const renderProfile = () => {
+        const profileId = viewingProfile === 'user' ? 'user' : viewingProfile || activeId;
+        const profilePosts = posts.filter(p => p.authorId === profileId);
+        const firstPost = profilePosts[0] || posts.find(p => p.authorId === profileId);
+        const name = profileId === 'user' ? 'Me' : (firstPost?.authorName || activeCharacter?.name || 'User');
+        const handle = profileId === 'user' ? '@me' : (firstPost?.authorHandle || '@char');
+        const avatar = profileId === 'user' ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=User' : (firstPost?.authorAvatar || activeCharacter?.avatar || '');
+
+        return (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 bg-black overflow-y-auto">
+                <div className="sticky top-0 bg-black/80 backdrop-blur-md z-10 border-b border-[#2f3336] px-4 h-14 flex items-center gap-6">
+                    <button onClick={() => setViewingProfile(null)} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div>
+                        <h2 className="font-bold text-[17px] leading-tight">{name}</h2>
+                        <p className="text-[#71767b] text-[13px]">{profilePosts.length} posts</p>
+                    </div>
+                </div>
+
+                <div className="h-32 bg-[#333639] w-full"></div>
+                <div className="px-4 -mt-12 relative pb-4">
+                    <img src={avatar} className="w-24 h-24 rounded-full border-4 border-black object-cover bg-black" />
+                    <div className="flex justify-end mt-4">
+                        <button className="px-4 py-1.5 rounded-full border border-[#536471] font-bold text-[14px]">Edit profile</button>
+                    </div>
+                    <div className="mt-4">
+                        <h1 className="font-extrabold text-xl leading-tight">{name}</h1>
+                        <p className="text-[#71767b]">{handle}</p>
+                    </div>
+                    <div className="mt-4 flex gap-4 text-[14px]">
+                        <span className="text-[#71767b]"><b className="text-white">128</b> Following</span>
+                        <span className="text-[#71767b]"><b className="text-white">5,102</b> Followers</span>
+                    </div>
+                </div>
+
+                <div className="flex border-b border-[#2f3336]">
+                    {['Posts', 'Replies', 'Media', 'Likes'].map(t => (
+                        <button key={t} className="flex-1 h-14 font-bold text-sm text-[#71767b] relative">
+                            {t}
+                            {t === 'Posts' && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-1 bg-[#1d9bf0] rounded-full"></div>}
+                        </button>
+                    ))}
+                </div>
+
+                <Feed 
+                    posts={profilePosts} 
+                    onLike={handleLike} 
+                    onCommentClick={() => {}} 
+                    currentUserId="user" 
+                    virtualTime={virtualTime} 
+                    onLoadMore={() => {}}
+                    isLoading={false}
+                    onUserClick={setViewingProfile}
+                />
+            </motion.div>
+        );
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#050505] animate-fade-in relative z-10 font-sans text-white">
-            
-            {/* Header */}
-            <div className="px-4 py-3 bg-zinc-900/80 backdrop-blur-md border-b border-white/5 sticky top-0 z-20 flex justify-between items-center shrink-0">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => onNavigate('home')} className="p-1 -ml-1 text-zinc-400 hover:text-white transition-colors">
-                        <ChevronLeft size={24} />
+        <div className="h-full flex flex-col bg-black text-white relative font-sans">
+            {!viewingProfile ? (
+                <>
+                    <header className="sticky top-0 bg-black/80 backdrop-blur-md z-10 border-b border-[#2f3336] h-14 flex items-center px-4">
+                        <div className="flex-1 flex items-center gap-4">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" className="w-8 h-8 rounded-full" onClick={() => setViewingProfile('user')} />
+                            <h1 className="text-lg font-bold">Connected</h1>
+                        </div>
+                        <Settings size={20} className="text-white" />
+                    </header>
+
+                    <div className="flex border-b border-[#2f3336]">
+                        {['For You', 'Following'].map(tab => (
+                            <button 
+                                key={tab} 
+                                onClick={() => setActiveTab(tab as any)}
+                                className={`flex-1 h-12 font-bold text-[15px] relative ${activeTab === tab ? 'text-white' : 'text-[#71767b]'}`}
+                            >
+                                {tab}
+                                {activeTab === tab && <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-[#1d9bf0] rounded-full"></div>}
+                            </button>
+                        ))}
+                    </div>
+
+                    <Feed 
+                        posts={posts} 
+                        onLike={handleLike} 
+                        onCommentClick={() => {}} 
+                        currentUserId="user" 
+                        virtualTime={virtualTime}
+                        onLoadMore={() => handleLoadMore()}
+                        isLoading={isLoading}
+                        onShowToCharacter={onShowToCharacter}
+                        onShareToChat={(txt) => {
+                            if (activeCharacterId && onSendMessage) {
+                                onSendMessage(txt, activeCharacterId);
+                                alert("Sent to character.");
+                            }
+                        }}
+                        onUserClick={setViewingProfile}
+                    />
+
+                    <button 
+                        onClick={() => setShowCompose(true)}
+                        className="absolute bottom-20 right-4 w-14 h-14 rounded-full bg-[#1d9bf0] flex items-center justify-center shadow-xl hover:brightness-110 active:scale-95 transition-all"
+                    >
+                        <Plus size={24} className="text-white" strokeWidth={3} />
                     </button>
-                    <h2 className="text-lg font-black tracking-tighter bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent">
-                        Connected
-                    </h2>
-                </div>
-                <div className="flex gap-4 text-zinc-400">
-                    <Search size={20} />
-                    <div className="relative">
-                        <Bell size={20} />
-                    </div>
-                </div>
-            </div>
 
-            {/* Stories Area */}
-            <div className="pt-3 pb-2 border-b border-white/5 bg-[#0a0a0a] shrink-0">
-                <div className="flex overflow-x-auto no-scrollbar px-4 gap-4">
-                    <div className="flex flex-col items-center gap-1 shrink-0">
-                        <div className="w-14 h-14 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center relative">
-                            <PlusSquare size={20} className="text-zinc-500" />
-                            <div className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-0.5 border border-black">
-                                <PlusSquare size={10} className="text-white" fill="white"/>
-                            </div>
-                        </div>
-                        <span className="text-[10px] text-zinc-500">Your Story</span>
-                    </div>
-                    {/* Render Chatbot Story Circle if Active */}
-                    {activeCharacter && (
-                         <div className="flex flex-col items-center gap-1 shrink-0">
-                            <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 to-blue-600">
-                                <img src={activeCharacter.avatar} className="w-full h-full rounded-full object-cover border-2 border-black" />
-                            </div>
-                            <span className="text-[10px] text-zinc-300 w-14 truncate text-center">{activeCharacter.name.split(' ')[0]}</span>
-                        </div>
-                    )}
-                    {phoneData?.contacts.slice(0, 5).map(c => (
-                        <div key={c.id} className="flex flex-col items-center gap-1 shrink-0">
-                            <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
-                                <img src={c.avatar} className="w-full h-full rounded-full object-cover border-2 border-black" />
-                            </div>
-                            <span className="text-[10px] text-zinc-300 w-14 truncate text-center">{c.name.split(' ')[0]}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Main Feed */}
-            {activeTab === 'home' && (
-                <Feed 
-                    posts={posts} 
-                    onLike={handleLike} 
-                    onCommentClick={setViewingPost}
-                    currentUserId="user"
-                    virtualTime={virtualTime}
-                    onLoadMore={() => handleLoadMore(false)}
-                    isLoading={isLoading}
-                />
+                    <nav className="h-14 border-t border-[#2f3336] flex items-center justify-around bg-black bg-opacity-95">
+                        <Home size={24} className="text-white" fill="currentColor" />
+                        <Search size={24} className="text-[#e7e9ea]" />
+                        <Bell size={24} className="text-[#e7e9ea]" />
+                        <Mail size={24} className="text-[#e7e9ea]" />
+                    </nav>
+                </>
+            ) : (
+                renderProfile()
             )}
 
-            {activeTab === 'profile' && (
-                <div className="flex-1 flex flex-col items-center justify-center text-zinc-500">
-                    <User size={48} className="mb-2" />
-                    <p>User Profile</p>
-                </div>
-            )}
-
-            {/* Bottom Navigation */}
-            <div className="absolute bottom-0 left-0 right-0 h-16 bg-black border-t border-white/10 flex justify-around items-center px-2 z-30">
-                <button onClick={() => setActiveTab('home')} className={`p-3 rounded-xl transition-all ${activeTab === 'home' ? 'text-white bg-white/10' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                    <Home size={24} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
-                </button>
-                <button onClick={() => setActiveTab('search')} className={`p-3 rounded-xl transition-all ${activeTab === 'search' ? 'text-white bg-white/10' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                    <Search size={24} strokeWidth={activeTab === 'search' ? 2.5 : 2} />
-                </button>
-                
-                <button onClick={handleCreatePost} className="p-3 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-full text-white shadow-lg shadow-cyan-500/20 transform -translate-y-4 hover:scale-105 transition-transform">
-                    <PlusSquare size={24} />
-                </button>
-
-                <button onClick={() => setActiveTab('notif')} className={`p-3 rounded-xl transition-all ${activeTab === 'notif' ? 'text-white bg-white/10' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                    <Bell size={24} strokeWidth={activeTab === 'notif' ? 2.5 : 2} />
-                </button>
-                <button onClick={() => setActiveTab('profile')} className={`p-3 rounded-xl transition-all ${activeTab === 'profile' ? 'text-white bg-white/10' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                    <User size={24} strokeWidth={activeTab === 'profile' ? 2.5 : 2} />
-                </button>
-            </div>
-
-            {/* Overlays */}
-            {viewingPost && (
-                <CommentModal 
-                    post={viewingPost} 
-                    onClose={() => setViewingPost(null)} 
-                    onAddComment={handleAddComment}
-                    virtualTime={virtualTime}
-                />
-            )}
+            <AnimatePresence>
+                {showCompose && (
+                    <motion.div 
+                        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                        className="absolute inset-0 bg-black z-50 flex flex-col pt-safe"
+                    >
+                        <div className="flex justify-between items-center p-4 border-b border-[#2f3336]">
+                            <button onClick={() => setShowCompose(false)}><X size={24} /></button>
+                            <div className="flex bg-[#202327] rounded-full p-1 scale-90">
+                                <button className="px-4 py-1 rounded-full text-xs font-bold bg-[#1d9bf0]">User</button>
+                                <button onClick={() => handleAIRespond()} className="px-4 py-1 rounded-full text-xs font-bold text-[#71767b] flex gap-1 items-center">
+                                    <Sparkles size={12} className="text-[#1d9bf0]" /> AI Post
+                                </button>
+                            </div>
+                            <button 
+                                onClick={handleCreatePost} 
+                                disabled={!composeText.trim() && composeAttachment === 'none'}
+                                className="px-4 py-1.5 bg-[#1d9bf0] text-white rounded-full font-bold text-sm disabled:opacity-50"
+                            >
+                                {isGenerating ? '...' : 'Post'}
+                            </button>
+                        </div>
+                        <div className="flex-1 p-4 flex gap-3 overflow-y-auto">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" className="w-10 h-10 rounded-full" />
+                            <div className="flex-1">
+                                <textarea 
+                                    autoFocus value={composeText} onChange={e => setComposeText(e.target.value)}
+                                    placeholder="What's happening?"
+                                    className="w-full bg-transparent text-xl outline-none resize-none min-h-[150px]"
+                                />
+                                {composeAttachment !== 'none' && (
+                                    <div className="mt-2 p-3 bg-[#1d9bf0]/10 border border-[#1d9bf0]/20 rounded-xl flex justify-between items-center">
+                                        <span className="text-[13px] text-[#1d9bf0] font-bold italic">✨ AI Visualization Enabled: {composeAttachment}</span>
+                                        <button onClick={() => setComposeAttachment('none')}><X size={14} /></button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="p-3 border-t border-[#2f3336] flex flex-col gap-4">
+                            <div className="text-[10px] tracking-widest uppercase font-bold text-[#71767b] ml-1">Visualization (AI Gen)</div>
+                            <div className="flex gap-2">
+                                {(['16:9', '9:16', 'selfie'] as const).map(opt => (
+                                    <button 
+                                        key={opt} onClick={() => setComposeAttachment(opt)}
+                                        className={`px-4 py-1.5 rounded-full border text-xs font-bold transition-all ${composeAttachment === opt ? 'bg-[#1d9bf0] border-[#1d9bf0] text-white' : 'border-[#2f3336] text-[#1d9bf0]'}`}
+                                    >
+                                        {opt.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
+

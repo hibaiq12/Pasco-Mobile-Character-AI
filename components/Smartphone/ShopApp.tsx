@@ -138,7 +138,7 @@ export const ShopApp: React.FC<ShopAppProps> = ({ virtualTime, onNavigate, onPla
         const date = new Date(virtualTime);
         const hour = date.getHours();
         
-        let targetDate = new Date(date);
+        const targetDate = new Date(date);
         let startHour = 8;
         let endHour = 17;
 

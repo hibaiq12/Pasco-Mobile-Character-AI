@@ -4,8 +4,8 @@ import { Slider, InputField } from '../../SharedComponents';
 import { Speaker, Mic } from 'lucide-react';
 
 interface VoiceConfigProps {
-    data: any;
-    onChange: (key: string, value: any) => void;
+    data: Record<string, unknown>;
+    onChange: (key: string, value: unknown) => void;
 }
 
 export const VoiceConfig: React.FC<VoiceConfigProps> = ({ data, onChange }) => {
@@ -23,7 +23,7 @@ export const VoiceConfig: React.FC<VoiceConfigProps> = ({ data, onChange }) => {
                     <div className="space-y-6">
                         <Slider 
                             label="Pitch"
-                            value={((data.pitch || 1.0) - 0.5) * 100}
+                            value={(((data.pitch as number) || 1.0) - 0.5) * 100}
                             onChange={(v) => onChange('pitch', 0.5 + (v / 100))}
                             leftLabel="Deep"
                             rightLabel="High"
@@ -31,7 +31,7 @@ export const VoiceConfig: React.FC<VoiceConfigProps> = ({ data, onChange }) => {
                         />
                         <Slider 
                             label="Speed"
-                            value={((data.speed || 1.0) - 0.5) * 100}
+                            value={(((data.speed as number) || 1.0) - 0.5) * 100}
                             onChange={(v) => onChange('speed', 0.5 + (v / 100))}
                             leftLabel="Slow"
                             rightLabel="Fast"

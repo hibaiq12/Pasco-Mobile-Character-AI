@@ -58,7 +58,7 @@ export const generateSocialResponse = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.1-flash-lite-preview",
             contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
             config: { temperature: 0.9, maxOutputTokens: 200 }
         });

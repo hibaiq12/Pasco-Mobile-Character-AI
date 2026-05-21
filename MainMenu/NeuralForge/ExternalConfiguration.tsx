@@ -2,20 +2,32 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Character } from '../../types';
 import { t } from '../../services/translationService';
-import { ChevronLeft, Dna, Play, PanelLeftOpen, PanelLeftClose, Zap, Activity, BrainCircuit, X, Fingerprint, Layers, BookOpen, AlertTriangle, ScanFace } from 'lucide-react';
-import { analyzeNeuralCoherence, AnalysisResult } from './NeuralThinking';
+import { ChevronLeft, Play, PanelLeftOpen, PanelLeftClose, Zap, Activity, BrainCircuit, X, Fingerprint, Layers, BookOpen, ScanFace } from 'lucide-react';
+import { analyzeNeuralCoherence, AnalysisResult, getCoherenceStatus } from './NeuralThinking';
+import { LucideIcon } from 'lucide-react';
 
-// Re-export untuk kompatibilitas jika ada file lain yang pakai
-export const calculateCoherenceScore = (formData: Partial<Character>): number => {
-    return analyzeNeuralCoherence(formData).score;
-};
-
-export const getCoherenceStatus = (score: number) => {
-    if (score < 40) return { label: "Artificial Intelligence", color: "text-zinc-500", bar: "bg-zinc-700", stroke: "#52525b", glow: "shadow-none" };
-    if (score < 70) return { label: "Simulated Persona", color: "text-blue-400", bar: "bg-blue-600", stroke: "#60a5fa", glow: "shadow-blue-500/50" };
-    if (score < 90) return { label: "Complex Soul", color: "text-violet-400", bar: "bg-violet-500", stroke: "#a78bfa", glow: "shadow-violet-500/50" };
-    return { label: "Human-Like Entity", color: "text-emerald-400", bar: "bg-gradient-to-r from-emerald-500 to-cyan-400", stroke: "#34d399", glow: "shadow-emerald-500/50" };
-};
+const MetricBar = ({ label, value, icon: Icon, color, animate }: { label: string, value: number, icon: LucideIcon, color: string, animate: boolean }) => (
+    <div className="mb-4 group">
+        <div className="flex justify-between items-end mb-1.5">
+            <div className="flex items-center gap-2 text-zinc-400 group-hover:text-zinc-300 transition-colors">
+                <Icon size={14} className={color} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+            </div>
+            <span className={`text-[10px] font-mono font-bold ${color}`}>{Math.round(value)}%</span>
+        </div>
+        <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5 relative">
+            {/* Background Track */}
+            <div className="absolute inset-0 bg-white/5"></div>
+            {/* Active Bar */}
+            <div 
+                className={`h-full transition-all duration-1000 ease-out ${color.replace('text-', 'bg-')} relative`} 
+                style={{ width: animate ? `${value}%` : '0%' }}
+            >
+                <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-white/50 shadow-[0_0_10px_white]"></div>
+            </div>
+        </div>
+    </div>
+);
 
 // --- MODAL COMPONENT ---
 const CoherenceDetailsModal = ({ analysis, onClose }: { analysis: AnalysisResult, onClose: () => void }) => {
@@ -38,29 +50,6 @@ const CoherenceDetailsModal = ({ analysis, onClose }: { analysis: AnalysisResult
     const radius = 58;
     const circumference = 2 * Math.PI * radius;
     const progressOffset = circumference - (analysis.score / 100) * circumference;
-
-    const MetricBar = ({ label, value, icon: Icon, color }: any) => (
-        <div className="mb-4 group">
-            <div className="flex justify-between items-end mb-1.5">
-                <div className="flex items-center gap-2 text-zinc-400 group-hover:text-zinc-300 transition-colors">
-                    <Icon size={14} className={color} />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
-                </div>
-                <span className={`text-[10px] font-mono font-bold ${color}`}>{Math.round(value)}%</span>
-            </div>
-            <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5 relative">
-                {/* Background Track */}
-                <div className="absolute inset-0 bg-white/5"></div>
-                {/* Active Bar */}
-                <div 
-                    className={`h-full transition-all duration-1000 ease-out ${color.replace('text-', 'bg-')} relative`} 
-                    style={{ width: animate ? `${value}%` : '0%' }}
-                >
-                    <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-white/50 shadow-[0_0_10px_white]"></div>
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <div 
@@ -213,7 +202,7 @@ export const ForgeHeader: React.FC<ForgeHeaderProps> = ({ onCancel, onSave }) =>
 interface ForgeSidebarProps {
     modules: { id: string; icon: React.ReactNode; labelKey: string }[];
     activeSection: string;
-    setActiveSection: (id: any) => void;
+    setActiveSection: (id: string) => void;
     isCollapsed: boolean;
     setIsCollapsed: (v: boolean) => void;
     formData: Partial<Character>;
@@ -253,7 +242,7 @@ export const ForgeSidebar: React.FC<ForgeSidebarProps> = ({
                             `}
                         >
                             <div className={`transition-colors ${activeSection === mod.id ? 'text-violet-400' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
-                                {React.cloneElement(mod.icon as any, { size: 18 })}
+                                {React.cloneElement(mod.icon as React.ReactElement, { size: 18 })}
                             </div>
                             {!isCollapsed && <span className="text-[11px] font-bold uppercase tracking-wide flex-1 truncate">{t(mod.labelKey)}</span>}
                             

@@ -26,7 +26,7 @@ export const WalletApp: React.FC<WalletAppProps> = ({ view, phoneData, onNavigat
 
     // Sync with parent view props if needed, though we manage internal state for Pay/Dashboard
     useEffect(() => {
-        if (view === 'wallet') setInternalView('dashboard');
+        if (view === 'wallet') setTimeout(() => setInternalView('dashboard'), 0);
     }, [view]);
 
     const formatCurrency = (amount: number) => {

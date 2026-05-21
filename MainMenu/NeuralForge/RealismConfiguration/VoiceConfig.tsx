@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { InputField, Tooltip } from './SharedComponents';
 import { Volume2 } from 'lucide-react';
-import { t } from '../../../../services/translationService';
-import { playTextToSpeech } from '../../../../services/geminiService';
+import { t } from '../../../services/translationService';
+import { playTextToSpeech } from '../../../services/geminiService';
 
 interface VoiceConfigProps {
     formData: Partial<Character>;
@@ -42,7 +42,7 @@ export const VoiceConfig: React.FC<VoiceConfigProps> = ({ formData, setFormData 
                         <label className="text-[10px] uppercase font-bold text-zinc-500 mb-3 block tracking-widest font-sans">{t('forge.label.vocab')}</label>
                         <div className="grid grid-cols-3 gap-2">
                             {['simple','average','academic'].map(v => (
-                                <button key={v} onClick={() => setFormData({...formData, communication: {...formData.communication!, vocabularyLevel: v as any}})} className={`py-2.5 text-[9px] font-bold uppercase rounded-lg border transition-all ${formData.communication?.vocabularyLevel === v ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.1)]' : 'bg-zinc-900/50 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300'}`}>{t(`forge.vocab.${v}`)}</button>
+                                <button key={v} onClick={() => setFormData({...formData, communication: {...formData.communication!, vocabularyLevel: v as 'simple' | 'average' | 'academic'}})} className={`py-2.5 text-[9px] font-bold uppercase rounded-lg border transition-all ${formData.communication?.vocabularyLevel === v ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.1)]' : 'bg-zinc-900/50 border-white/5 text-zinc-500 hover:border-white/10 hover:text-zinc-300'}`}>{t(`forge.vocab.${v}`)}</button>
                             ))}
                         </div>
                     </div>

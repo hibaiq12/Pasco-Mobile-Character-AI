@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { AppSettings } from '../../../types';
 import { AVAILABLE_MODELS } from '../../../constants';
 import { t } from '../../../services/translationService';
-import { Cpu, Check, Link, Key, Loader2, Send, Terminal, RotateCw, AlertTriangle, RefreshCw, Zap, Power, ShieldCheck, Activity } from 'lucide-react';
+import { Cpu, Check, Link, Key, Send, Terminal, AlertTriangle, Power, ShieldCheck, Activity } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { generateOpenRouterResponse } from '../../../services/Openrouter';
+import { generateKoboldResponse } from '../../../services/Kobold';
 
 interface AISettingsProps {
     settings: AppSettings;
@@ -25,6 +26,27 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
     const [errorMessage, setErrorMessage] = useState('');
     const [rebootProgress, setRebootProgress] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    const triggerReboot = useCallback(() => {
+        setStatus('rebooting');
+        setRebootProgress(0);
+        setErrorMessage('');
+        
+        const interval = setInterval(() => {
+            setRebootProgress(prev => {
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        setMessages([]);
+                        setStatus('idle');
+                    }, 800);
+                    return 100;
+                }
+                // Random increment for "realistic" loading feel
+                return prev + Math.floor(Math.random() * 5) + 2;
+            });
+        }, 50);
+    }, []);
 
     // Expose runDiagnostics method to parent
     useImperativeHandle(ref, () => ({
@@ -52,13 +74,16 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
                         settings.openRouterModel,
                         [{ role: 'user', content: 'test connection' }]
                     );
-                } else if (settings.defaultModel === 'kobold-api') {
-                    if (!settings.koboldUrl) throw new Error("URL Missing");
-                    await fetch(`${settings.koboldUrl}/api/v1/generate`, {
+                } else if (settings.defaultModel === 'ollama-api') {
+                    if (!settings.ollamaUrl) throw new Error("URL Missing");
+                    await fetch(`${settings.ollamaUrl}/api/generate`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: 'Test', max_length: 10 })
+                        body: JSON.stringify({ model: 'llama3.2', prompt: 'Test', stream: false })
                     });
+                } else if (settings.defaultModel === 'kobold-api') {
+                    if (!settings.koboldUrl) throw new Error("URL Missing");
+                    await generateKoboldResponse(settings.koboldModel || 'koboldcpp', [{ role: 'user', content: 'test connection' }]);
                 } else {
                     // For Gemini, verify key exists
                     if (!process.env.API_KEY) throw new Error("Environment Key Missing");
@@ -78,11 +103,12 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
                     }, 2500);
                 }, 500);
 
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const err = error as Error;
                 clearInterval(progressInterval);
                 setRebootProgress(0);
                 setStatus('error');
-                setErrorMessage(error.message || "Connection Failed");
+                setErrorMessage(err.message || "Connection Failed");
                 
                 // Auto reset after error
                 setTimeout(() => {
@@ -90,7 +116,7 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
                 }, 4000);
             }
         }
-    }), [settings, status]);
+    }), [settings, status, triggerReboot]);
 
     // Auto-scroll
     useEffect(() => {
@@ -106,28 +132,7 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [messages]);
-
-    const triggerReboot = () => {
-        setStatus('rebooting');
-        setRebootProgress(0);
-        setErrorMessage('');
-        
-        const interval = setInterval(() => {
-            setRebootProgress(prev => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        setMessages([]);
-                        setStatus('idle');
-                    }, 800);
-                    return 100;
-                }
-                // Random increment for "realistic" loading feel
-                return prev + Math.floor(Math.random() * 5) + 2;
-            });
-        }, 50);
-    };
+    }, [messages, status, triggerReboot]);
 
     const handleSend = async () => {
         if (!input.trim() || status !== 'idle') return;
@@ -149,7 +154,7 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
                 You MUST respond using this EXACT structure in Indonesian:
                 "<Salam> <Percakapan Biasa> <Nama Model>"
                 Current Active Model: "${settings.defaultModel}"
-                Example Output: "Halo kawan! Semoga harimu menyenangkan ya. Saat ini saya berjalan menggunakan model gemini-2.5-flash."
+                Example Output: "Halo kawan! Semoga harimu menyenangkan ya. Saat ini saya berjalan menggunakan model Gemini 3.1 Flash-Lite."
                 Keep the tone helpful and friendly like an AI assistant.
                 `;
             } else {
@@ -174,20 +179,30 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
                 });
                 reply = response.text || "System Operational.";
             } 
-            // --- 2. KOBOLD API ---
-            else if (settings.defaultModel === 'kobold-api') {
-                if (!settings.koboldUrl) throw new Error("NOT_FOUND");
+            // --- 2. OLLAMA API ---
+            else if (settings.defaultModel === 'ollama-api') {
+                if (!settings.ollamaUrl) throw new Error("NOT_FOUND");
                 try {
-                    const response = await fetch(`${settings.koboldUrl}/api/v1/generate`, {
+                    const response = await fetch(`${settings.ollamaUrl}/api/chat`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: `System: You are Pasco AI.\n${finalPrompt}\nPasco AI:`, max_length: 200, temperature: 0.7 })
+                        body: JSON.stringify({ 
+                            model: 'llama3.2', // TODO parameterize this
+                            messages: [
+                                { role: 'system', content: `System: You are Pasco AI.\n${finalPrompt}` }
+                            ],
+                            stream: false,
+                            options: {
+                                temperature: 0.7
+                            } 
+                        })
                     });
-                    if (!response.ok) throw new Error(`Kobold API Error: ${response.status}`);
+                    if (!response.ok) throw new Error(`Ollama API Error: ${response.status}`);
                     const data = await response.json();
-                    reply = data.results?.[0]?.text || "Connected to Kobold node.";
-                } catch (e: any) {
-                    throw new Error(e.message || "Kobold API Error");
+                    reply = data.message?.content || "Connected to Ollama node.";
+                } catch (e: unknown) {
+                    const err = e as Error;
+                    throw new Error(err.message || "Ollama API Error", { cause: e });
                 }
             }
             // --- 3. OPENROUTER API ---
@@ -199,17 +214,26 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
                     [{ role: "system", content: "You are Pasco AI." }, { role: "user", content: finalPrompt }]
                 );
             }
+            // --- 4. KOBOLD AI API ---
+            else if (settings.defaultModel === 'kobold-api') {
+                if (!settings.koboldUrl) throw new Error("NOT_FOUND");
+                reply = await generateKoboldResponse(
+                    settings.koboldModel || 'koboldcpp',
+                    [{ role: "system", content: "You are Pasco AI." }, { role: "user", content: finalPrompt }]
+                );
+            }
 
             setMessages(prev => [...prev, { role: 'model', text: reply }]);
             setStatus('idle');
 
-        } catch (error: any) {
-            console.error("Test Terminal Error:", error);
-            if (error.message === "NOT_FOUND") {
+        } catch (error: unknown) {
+            const err = error as Error;
+            console.error("Test Terminal Error:", err);
+            if (err.message === "NOT_FOUND") {
                 setStatus('not_found');
             } else {
                 setStatus('error');
-                setErrorMessage(error.message || 'Unknown Connection Error');
+                setErrorMessage(err.message || 'Unknown Connection Error');
             }
             setTimeout(triggerReboot, 5000);
         }
@@ -308,7 +332,7 @@ const PascoTestTerminal = forwardRef<PascoTerminalRef, { settings: AppSettings }
                             />
                         </div>
                         <div className="text-[8px] text-zinc-600 font-mono text-center pt-2">
-                            > {status === 'verifying' ? "PINGING ENDPOINT..." : "FLUSHING MEMORY BUFFER..."}
+                            &gt; {status === 'verifying' ? "PINGING ENDPOINT..." : "FLUSHING MEMORY BUFFER..."}
                         </div>
                     </div>
                 </div>
@@ -383,8 +407,32 @@ export const AISettings: React.FC<AISettingsProps> = ({ settings, setSettings })
                                             <span className={`font-bold text-sm ${settings.defaultModel === model.id ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>{model.name}</span>
                                             {settings.defaultModel === model.id && (
                                                 <div className="flex items-center gap-2">
-                                                     {/* CHECK BUTTON FOR OPENROUTER ONLY */}
+                                                     {/* CHECK BUTTON FOR OPENROUTER AND OLLAMA */}
                                                      {model.id === 'openrouter-api' && (
+                                                         <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                terminalRef.current?.runDiagnostics();
+                                                            }}
+                                                            className="p-1.5 bg-green-500/20 hover:bg-green-500/40 text-green-400 rounded-lg border border-green-500/30 transition-all active:scale-95 group/check"
+                                                            title="Test Connection"
+                                                         >
+                                                             <Activity size={14} className="group-hover/check:animate-pulse" />
+                                                         </button>
+                                                     )}
+                                                     {model.id === 'ollama-api' && (
+                                                         <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                terminalRef.current?.runDiagnostics();
+                                                            }}
+                                                            className="p-1.5 bg-green-500/20 hover:bg-green-500/40 text-green-400 rounded-lg border border-green-500/30 transition-all active:scale-95 group/check"
+                                                            title="Test Connection"
+                                                         >
+                                                             <Activity size={14} className="group-hover/check:animate-pulse" />
+                                                         </button>
+                                                     )}
+                                                     {model.id === 'kobold-api' && (
                                                          <button 
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -405,17 +453,73 @@ export const AISettings: React.FC<AISettingsProps> = ({ settings, setSettings })
                                 </div>
 
                                 {/* Config Fields for External APIs - INSIDE THE CARD */}
-                                {settings.defaultModel === 'kobold-api' && model.id === 'kobold-api' && (
+                                {settings.defaultModel === 'ollama-api' && model.id === 'ollama-api' && (
                                      <div className="mt-5 pt-4 border-t border-white/5 w-full animate-fade-in" onClick={e => e.stopPropagation()}>
-                                        <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 block tracking-wider">API Endpoint URL</label>
+                                        <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 block tracking-wider">Ollama Endpoint URL</label>
                                         <div className="flex gap-2">
                                             <div className="flex-1 flex items-center bg-black/40 border border-zinc-700 rounded-xl px-3 py-2.5 focus-within:border-violet-500/50 transition-colors">
                                                 <Link size={14} className="text-zinc-500 mr-3" />
                                                 <input 
                                                     type="text" 
-                                                    value={settings.koboldUrl}
+                                                    value={settings.ollamaUrl}
+                                                    onChange={(e) => setSettings({...settings, ollamaUrl: e.target.value})}
+                                                    placeholder="http://localhost:11434"
+                                                    className="bg-transparent text-sm text-zinc-200 outline-none w-full placeholder-zinc-700 font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 mt-4 block tracking-wider">Ollama Model</label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 flex items-center bg-black/40 border border-zinc-700 rounded-xl px-3 py-2.5 focus-within:border-violet-500/50 transition-colors">
+                                                <Cpu size={14} className="text-zinc-500 mr-3" />
+                                                <input 
+                                                    type="text" 
+                                                    value={settings.ollamaModel || ''}
+                                                    onChange={(e) => setSettings({...settings, ollamaModel: e.target.value})}
+                                                    placeholder="llama3.2"
+                                                    className="bg-transparent text-sm text-zinc-200 outline-none w-full placeholder-zinc-700 font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 mt-4 block tracking-wider">Ollama Cloud API Key (for Web Search)</label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 flex items-center bg-black/40 border border-zinc-700 rounded-xl px-3 py-2.5 focus-within:border-violet-500/50 transition-colors">
+                                                <Key size={14} className="text-zinc-500 mr-3" />
+                                                <input 
+                                                    type="password" 
+                                                    value={settings.ollamaApiKey || ''}
+                                                    onChange={(e) => setSettings({...settings, ollamaApiKey: e.target.value})}
+                                                    placeholder="Leave empty if not using search. e.g. ol-..."
+                                                    className="bg-transparent text-sm text-zinc-200 outline-none w-full placeholder-zinc-700 font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                     </div>
+                                )}
+                                {settings.defaultModel === 'kobold-api' && model.id === 'kobold-api' && (
+                                     <div className="mt-5 pt-4 border-t border-white/5 w-full animate-fade-in" onClick={e => e.stopPropagation()}>
+                                        <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 block tracking-wider">Kobold URL (from Colab)</label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 flex items-center bg-black/40 border border-zinc-700 rounded-xl px-3 py-2.5 focus-within:border-violet-500/50 transition-colors">
+                                                <Link size={14} className="text-zinc-500 mr-3" />
+                                                <input 
+                                                    type="text" 
+                                                    value={settings.koboldUrl || ''}
                                                     onChange={(e) => setSettings({...settings, koboldUrl: e.target.value})}
-                                                    placeholder="http://localhost:5000/api"
+                                                    placeholder="https://xxxxx.trycloudflare.com"
+                                                    className="bg-transparent text-sm text-zinc-200 outline-none w-full placeholder-zinc-700 font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 mt-4 block tracking-wider">Kobold Model (Optional)</label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 flex items-center bg-black/40 border border-zinc-700 rounded-xl px-3 py-2.5 focus-within:border-violet-500/50 transition-colors">
+                                                <Cpu size={14} className="text-zinc-500 mr-3" />
+                                                <input 
+                                                    type="text" 
+                                                    value={settings.koboldModel || ''}
+                                                    onChange={(e) => setSettings({...settings, koboldModel: e.target.value})}
+                                                    placeholder="koboldcpp (default)"
                                                     className="bg-transparent text-sm text-zinc-200 outline-none w-full placeholder-zinc-700 font-mono"
                                                 />
                                             </div>

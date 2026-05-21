@@ -50,30 +50,52 @@ const calculateScenarioImpact = (char: Character): { impact: number, modifier?: 
     const text = `${char.scenario.currentLocation} ${char.scenario.currentActivity}`.toLowerCase();
     let detectedMod = "";
 
-    // 1. Keyword Analysis
-    if (SCENARIO_KEYWORDS.HIGH_STRESS.some(w => text.includes(w))) {
-        impact -= 15;
-        detectedMod = "Scenario Stress (High)";
-    } else if (SCENARIO_KEYWORDS.MODERATE_STRESS.some(w => text.includes(w))) {
-        impact -= 8;
-        detectedMod = "Scenario Stress (Mod)";
-    } else if (SCENARIO_KEYWORDS.COMFORT.some(w => text.includes(w))) {
-        impact += 10;
-        // Comfort scenario usually doesn't show as a negative modifier, maybe a positive boost implicit
-    }
-
-    // 2. Pseudo-Random Variance (Chaos Factor)
-    // Mensimulasikan kondisi mood acak saat skenario dimulai
+    // Calculate hash first
     let hash = 0;
     for (let i = 0; i < text.length; i++) {
         hash = ((hash << 5) - hash) + text.charCodeAt(i);
         hash |= 0;
     }
+
+    // 1. Keyword Analysis
+    if (SCENARIO_KEYWORDS.HIGH_STRESS.some(w => text.includes(w))) {
+        impact -= 15;
+        const variants = [
+            "Severe Environmental Panic",
+            "Hostile Surroundings",
+            "Critical Scenario Stress",
+            "Traumatic Context",
+            "Imminent Threat Detected"
+        ];
+        detectedMod = variants[Math.abs(hash) % variants.length];
+    } else if (SCENARIO_KEYWORDS.MODERATE_STRESS.some(w => text.includes(w))) {
+        impact -= 8;
+        const variants = [
+            "Mild Scenario Tension",
+            "Uncomfortable Atmosphere",
+            "Moderate Context Stress",
+            "Uneasy Environment",
+            "Ambient Pressure"
+        ];
+        detectedMod = variants[Math.abs(hash) % variants.length];
+    } else if (SCENARIO_KEYWORDS.COMFORT.some(w => text.includes(w))) {
+        impact += 10;
+        const variants = [
+            "Optimal Environment",
+            "Soothing Scenario",
+            "Safe Haven",
+            "Comforting Surroundings"
+        ];
+        detectedMod = variants[Math.abs(hash) % variants.length];
+    }
+
+    // 2. Pseudo-Random Variance (Chaos Factor)
+    // Mensimulasikan kondisi mood acak saat skenario dimulai
     const chaos = (hash % 10); // Range -9 to 9
     
     return { 
         impact: impact + chaos,
-        modifier: impact < 0 ? detectedMod : undefined
+        modifier: detectedMod !== "" ? detectedMod : undefined
     };
 };
 
@@ -91,156 +113,127 @@ export const analyzePsyche = (
     const resilienceFactor = 1 - (neuroticism / 100); // 0 (Fragile) to 1 (Stoic)
     const eqScore = calculateEQ(character);
     
-    // Base Stability default
-    let currentScore = 80; 
+    // Base Stability default from NeuroCheat or Character Config
+    let baseScore = 80; 
     
-    // Karakter dengan trait khusus memulai dengan baseline berbeda
     if (character.emotionalProfile.stability.toLowerCase().includes('low') || 
         character.emotionalProfile.stability.toLowerCase().includes('fragile')) {
-        currentScore = 60;
+        baseScore = 60;
     } else if (character.emotionalProfile.stability.toLowerCase().includes('high') || 
                character.emotionalProfile.stability.toLowerCase().includes('stoic')) {
-        currentScore = 90;
+        baseScore = 90;
     }
 
-    const activeModifiers: string[] = [];
-    let cumulativeStress = 0;
-    let recoveryBoost = 0;
+    let currentScore = baseScore;
+    const activeModifiers: Set<string> = new Set();
+    
+    // Hitung Base Recovery Rate
+    const baseRecoveryRate = 2 + (eqScore / 20) + (resilienceFactor * 3);
 
     // --- APPLY SCENARIO IMPACT ---
     const scenarioAnalysis = calculateScenarioImpact(character);
     currentScore += scenarioAnalysis.impact;
     if (scenarioAnalysis.modifier) {
-        activeModifiers.push(scenarioAnalysis.modifier);
+        activeModifiers.add(scenarioAnalysis.modifier);
     }
 
-    // --- APPLY INTERNAL STATE (Updated for Health, Violence, Pleasure, Weather) ---
-    // Kita kirim 5 pesan terakhir dari MODEL (AI) untuk dianalisis pola kesehatannya
-    // PsycheExtra akan menangani persistensi dan trait check
-    const botMessages = messages.filter(m => m.role === 'model').slice(-5);
-    
-    if (botMessages.length > 0) {
-        // PASSING CHARACTER OBJECT HERE for Trait-based Weather Analysis
-        const internalState = analyzeInternalState(botMessages, character);
-        currentScore += internalState.impact;
-        if (internalState.modifier) {
-            activeModifiers.push(internalState.modifier);
-        }
-    }
-
-    // 2. ANALISIS WAKTU (Circadian Rhythm)
-    const hour = new Date(virtualTime).getHours();
-    if (hour >= 0 && hour < 4) {
-        // Malam hari mengurangi resilience sebesar 20%
-        cumulativeStress += 5;
-        activeModifiers.push("Midnight Melancholy");
-    }
-
-    // 3. ANALISIS ENGRAM (Histori Pesan USER) dengan RECOVERY RATE
-    // Kita melihat 10 pesan terakhir untuk konteks emosional yang lebih dalam
-    const recentMessages = messages.slice(-10);
-
-    // Hitung Base Recovery Rate
-    // EQ tinggi & Resilience tinggi = Recovery Cepat
-    let baseRecoveryRate = 2 + (eqScore / 20) + (resilienceFactor * 3); 
+    // --- 2. PROCESS ENTIRE RECENT HISTORY STATEFULLY ---
+    const recentMessages = messages.slice(-100);
+    let trend: PsycheState['trend'] = 'stable';
+    let lastStressful = true;
 
     recentMessages.forEach((msg, index) => {
-        // Distance factor: 0 (terlama) sampai 1 (terbaru)
-        // Pesan lama memiliki dampak yang lebih kecil (Decay)
-        // Decay rate dipengaruhi oleh EQ. EQ tinggi = Cepat melupakan hal buruk.
-        const msgAge = recentMessages.length - 1 - index; // 0 is latest
-        const decayFactor = Math.max(0.1, 1 - (msgAge * (0.15 + (eqScore / 500)))); 
-
-        if (msg.role === 'user') {
-            const text = msg.text;
-            const textLower = text.toLowerCase();
+        if (msg.role === 'model') {
+            const internalState = analyzeInternalState([msg], character);
+            currentScore += internalState.impact;
+            if (index === recentMessages.length - 1 && internalState.modifier) {
+                activeModifiers.add(internalState.modifier);
+            }
+        } else if (msg.role === 'user') {
+            const text = msg.text.toLowerCase();
             let msgStress = 0;
             let msgComfort = 0;
+            let isStressful = false;
 
             // A. DETEKSI BENTAKAN (CAPSLOCK & Tanda Seru)
-            const isCaps = text.length > 5 && text === text.toUpperCase() && /[A-Z]/.test(text);
-            const isYelling = (text.match(/!/g) || []).length > 2;
+            const isCaps = msg.text.length > 5 && msg.text === msg.text.toUpperCase() && /[A-Z]/.test(msg.text);
+            const isYelling = (msg.text.match(/!/g) || []).length > 2;
 
             if (isCaps || isYelling) {
                 msgStress += 15;
-                if (index === recentMessages.length - 1) activeModifiers.push("Verbal Aggression");
+                isStressful = true;
+                if (index === recentMessages.length - 1) activeModifiers.add("Verbal Aggression");
             }
 
             // B. DETEKSI KATA KASAR (Aggression)
-            const hasInsult = TRIGGER_KEYWORDS.AGGRESSION.some(word => textLower.includes(word));
+            const hasInsult = TRIGGER_KEYWORDS.AGGRESSION.some(word => text.includes(word));
             if (hasInsult) {
                 msgStress += 20;
-                if (index === recentMessages.length - 1) activeModifiers.push("Emotional Abuse");
+                isStressful = true;
+                if (index === recentMessages.length - 1) activeModifiers.add("Emotional Abuse");
             }
 
             // C. DETEKSI STALKING / ANCAMAN (Paranoia)
-            const hasStalking = TRIGGER_KEYWORDS.STALKING.some(word => textLower.includes(word));
-            if (hasStalking && (textLower.includes('kamu') || textLower.includes('u'))) {
+            const hasStalking = TRIGGER_KEYWORDS.STALKING.some(word => text.includes(word));
+            if (hasStalking && (text.includes('kamu') || text.includes('u'))) {
                 msgStress += 25;
-                if (index === recentMessages.length - 1) activeModifiers.push("Paranoia Trigger");
+                isStressful = true;
+                if (index === recentMessages.length - 1) activeModifiers.add("Paranoia Trigger");
             }
 
             // D. DETEKSI PENENANG (Comfort / Apology)
-            // EQ Karakter menentukan seberapa efektif permintaan maaf user.
-            const hasComfort = TRIGGER_KEYWORDS.COMFORT.some(word => textLower.includes(word));
+            const hasComfort = TRIGGER_KEYWORDS.COMFORT.some(word => text.includes(word));
             if (hasComfort) {
-                // High EQ characters accept apologies easier
                 const forgivenessMultiplier = 1 + (eqScore / 100); 
                 msgComfort += 10 * forgivenessMultiplier;
-                
-                // Jika pesan terbaru adalah comfort, boost recovery rate global
-                if (index === recentMessages.length - 1) {
-                    recoveryBoost += 5 * forgivenessMultiplier;
-                }
             }
 
-            // Apply Decay Logic (Trauma Fading)
-            // Stress masa lalu memudar berdasarkan EQ dan Waktu
-            cumulativeStress += (msgStress * decayFactor);
+            // APPLY DAMAGE
+            const effectiveStress = msgStress * (1 - (resilienceFactor * 0.4));
+            currentScore -= effectiveStress;
+            currentScore += msgComfort;
+
+            // NATURAL HEALING
+            if (!isStressful && currentScore < 100) {
+                // Diminishing returns on healing as it approaches 100
+                const distanceToMax = 100 - currentScore;
+                const healAmount = baseRecoveryRate * (distanceToMax / 100);
+                currentScore += healAmount;
+            }
+
+            currentScore = Math.max(0, Math.min(100, currentScore));
             
-            // Comfort masa lalu juga memudar (Efek pujian tidak selamanya)
-            currentScore += (msgComfort * decayFactor);
+            if (index === recentMessages.length - 1) {
+                lastStressful = isStressful;
+                if (msgComfort > effectiveStress + 1) trend = 'rising';
+                else if (effectiveStress > 1) trend = 'falling';
+                else trend = 'stable';
+            }
         }
     });
 
-    // 4. KALKULASI AKHIR: STRESS VS RESILIENCE
-    
-    // Karakter dengan Resilience tinggi memblokir sebagian damage stress
-    const effectiveStress = cumulativeStress * (1 - (resilienceFactor * 0.4)); 
-    
-    currentScore = currentScore - effectiveStress;
-
-    // 5. PENERAPAN RECOVERY RATE (Natural Healing)
-    // Jika tidak ada stress aktif di pesan terakhir, karakter pulih perlahan
-    const lastMsg = recentMessages[recentMessages.length - 1];
-    const isLastMsgStressful = activeModifiers.includes("Verbal Aggression") || activeModifiers.includes("Emotional Abuse");
-    
-    if (!isLastMsgStressful) {
-        currentScore += baseRecoveryRate + recoveryBoost;
+    // 3. ANALISIS WAKTU (Circadian Rhythm)
+    const hour = new Date(virtualTime).getHours();
+    if (hour >= 0 && hour < 4) {
+        currentScore -= 5;
+        activeModifiers.add("Midnight Melancholy");
     }
 
-    // Clamp score
     currentScore = Math.max(0, Math.min(100, currentScore));
 
-    // 6. STATUS DETERMINATION
+    // 4. STATUS DETERMINATION
     let status: PsycheState['status'] = 'Stable';
     if (currentScore < 80) status = 'Anxious';
     if (currentScore < 50) status = 'Frightened';
     if (currentScore < 30) status = 'Panicked';
     if (currentScore < 10) status = 'Broken';
 
-    // 7. TREND DETERMINATION
-    let trend: PsycheState['trend'] = 'stable';
-    // Bandingkan dengan skor teoretis tanpa healing untuk melihat arah
-    if (effectiveStress > (baseRecoveryRate + recoveryBoost) + 2) trend = 'falling';
-    if ((baseRecoveryRate + recoveryBoost) > effectiveStress + 2) trend = 'rising';
-
     return {
         score: Math.round(currentScore),
         status,
-        modifiers: [...new Set(activeModifiers)],
+        modifiers: Array.from(activeModifiers),
         trend,
         emotionalIntelligence: Math.round(eqScore),
-        recoveryRate: parseFloat((baseRecoveryRate + recoveryBoost).toFixed(1))
+        recoveryRate: parseFloat(baseRecoveryRate.toFixed(1))
     };
 };

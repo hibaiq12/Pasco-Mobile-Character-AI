@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { Slider } from './SharedComponents';
-import { t } from '../../../../services/translationService';
+import { t } from '../../../services/translationService';
 
 interface PsycheConfigProps {
     formData: Partial<Character>;

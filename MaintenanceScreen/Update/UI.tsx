@@ -5,7 +5,7 @@ import { UPDATE_MESSAGES, CHANGELOG_DATA } from './Messages';
 import { useUpdateLogic } from './Logic';
 import { useMaintenanceLogic } from '../Maintenance/Logic';
 
-export const UpdateUI: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+export const UpdateUI: React.FC<{ onComplete: () => void; isPreview?: boolean }> = ({ onComplete, isPreview = false }) => {
     const [isVerifying, setIsVerifying] = useState(false);
     
     // Custom complete handler that triggers the bar finish instead of instant unlock
@@ -33,7 +33,7 @@ export const UpdateUI: React.FC<{ onComplete: () => void }> = ({ onComplete }) =
     };
 
     return (
-        <div className="fixed inset-0 z-[999] bg-zinc-950 flex flex-col items-center justify-center p-6 text-zinc-200 select-none overflow-hidden">
+        <div className={`${isPreview ? 'absolute inset-0 z-10 w-full h-full' : 'fixed inset-0 z-[999]'} bg-zinc-950 flex flex-col items-center justify-center p-6 text-zinc-200 select-none overflow-hidden`}>
             {/* Background Ambient Glow */}
             <div className={`absolute inset-0 transition-colors duration-1000 ${isFinishing ? 'bg-blue-900/10' : 'bg-amber-900/5'}`} />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-zinc-950 to-zinc-950 pointer-events-none" />

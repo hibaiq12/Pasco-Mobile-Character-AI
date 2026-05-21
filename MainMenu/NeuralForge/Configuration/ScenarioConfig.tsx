@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { InputField, Tooltip } from './SharedComponents';
-import { Clock, MapPin } from 'lucide-react';
-import { t } from '../../../../services/translationService';
+import { Clock } from 'lucide-react';
+import { t } from '../../../services/translationService';
 
 interface ScenarioConfigProps {
     formData: Partial<Character>;

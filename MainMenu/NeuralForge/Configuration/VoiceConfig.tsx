@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { InputField, Tooltip } from './SharedComponents';
 import { Button } from '../../../components/Button';
 import { Volume2 } from 'lucide-react';
-import { t } from '../../../../services/translationService';
-import { playTextToSpeech } from '../../../../services/geminiService';
+import { t } from '../../../services/translationService';
+import { playTextToSpeech } from '../../../services/geminiService';
 
 interface VoiceConfigProps {
     formData: Partial<Character>;
@@ -41,7 +41,7 @@ export const VoiceConfig: React.FC<VoiceConfigProps> = ({ formData, setFormData 
                     <label className="text-[10px] uppercase font-bold text-zinc-500 mb-2 block tracking-widest ml-1">{t('forge.label.vocab')}</label>
                     <div className="grid grid-cols-3 gap-1">
                         {['simple','average','academic'].map(v => (
-                            <button key={v} onClick={() => setFormData({...formData, communication: {...formData.communication!, vocabularyLevel: v as any}})} className={`py-2 text-[9px] font-bold uppercase rounded-lg border transition-all ${formData.communication?.vocabularyLevel === v ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-900/20' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}>{t(`forge.vocab.${v}`)}</button>
+                            <button key={v} onClick={() => setFormData({...formData, communication: {...formData.communication!, vocabularyLevel: v as 'simple' | 'average' | 'academic'}})} className={`py-2 text-[9px] font-bold uppercase rounded-lg border transition-all ${formData.communication?.vocabularyLevel === v ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-900/20' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}>{t(`forge.vocab.${v}`)}</button>
                         ))}
                     </div>
                 </div>

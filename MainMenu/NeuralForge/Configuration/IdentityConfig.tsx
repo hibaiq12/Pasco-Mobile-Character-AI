@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Character } from '../../../../types';
+import { Character } from '../../../types';
 import { InputField } from './SharedComponents';
 import { Upload, ScanFace } from 'lucide-react';
-import { t } from '../../../../services/translationService';
+import { t } from '../../../services/translationService';
 
 interface IdentityConfigProps {
     formData: Partial<Character>;

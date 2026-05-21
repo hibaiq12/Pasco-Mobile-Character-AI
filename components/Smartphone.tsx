@@ -71,7 +71,7 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
   };
 
   useEffect(() => {
-    refreshData();
+    setTimeout(() => refreshData(), 0);
   }, [activeCharacterId, lastUpdate, show]);
 
   // Handle Notification
@@ -80,7 +80,7 @@ export const Smartphone: React.FC<SmartphoneProps> = ({
           const latest = notifications[0];
           // Only show if it's new (simple check via ID or timestamp could be better, but this works for basic flow)
           if (currentNotif?.id !== latest.id) {
-            setCurrentNotif(latest);
+            setTimeout(() => setCurrentNotif(latest), 0);
             const timer = setTimeout(() => setCurrentNotif(null), 3000);
             return () => clearTimeout(timer);
           }

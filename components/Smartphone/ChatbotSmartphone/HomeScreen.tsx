@@ -9,6 +9,20 @@ interface ChatbotHomeScreenProps {
     character: Character | null;
 }
 
+// Reusable App Icon Component
+const AppIcon = ({ icon: Icon, color, label, onClick }: any) => (
+    <button 
+        onClick={onClick} 
+        className="flex flex-col items-center gap-1.5 group active:scale-90 transition-transform duration-200"
+    >
+        <div className={`w-[60px] h-[60px] ${color} rounded-[14px] flex items-center justify-center text-white shadow-lg relative overflow-hidden`}>
+            <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none"></div>
+            <Icon size={28} strokeWidth={2} fill="currentColor" className="opacity-95 drop-shadow-sm relative z-10" />
+        </div>
+        <span className="text-[11px] text-white/90 font-medium drop-shadow-md tracking-tight">{label}</span>
+    </button>
+);
+
 export const ChatbotHomeScreen: React.FC<ChatbotHomeScreenProps> = ({ onLaunch, virtualTime, character }) => {
     
     // Calculate Age Detail (YY:MM:DD)
@@ -40,20 +54,6 @@ export const ChatbotHomeScreen: React.FC<ChatbotHomeScreenProps> = ({ onLaunch, 
 
         return { years, months, days };
     }, [character, virtualTime]);
-
-    // Reusable App Icon Component
-    const AppIcon = ({ icon: Icon, color, label, onClick }: any) => (
-        <button 
-            onClick={onClick} 
-            className="flex flex-col items-center gap-1.5 group active:scale-90 transition-transform duration-200"
-        >
-            <div className={`w-[60px] h-[60px] ${color} rounded-[14px] flex items-center justify-center text-white shadow-lg relative overflow-hidden`}>
-                <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none"></div>
-                <Icon size={28} strokeWidth={2} fill="currentColor" className="opacity-95 drop-shadow-sm relative z-10" />
-            </div>
-            <span className="text-[11px] text-white/90 font-medium drop-shadow-md tracking-tight">{label}</span>
-        </button>
-    );
 
     return (
         <div className="h-full flex flex-col relative z-10 animate-fade-in">

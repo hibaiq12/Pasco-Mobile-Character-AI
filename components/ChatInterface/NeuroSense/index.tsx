@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Character, Message, OutfitItem } from '../../../types';
 import { X, Cpu } from 'lucide-react';
-import { useProfileEngine } from './ProfileEngine';
+import { NeuralProfile } from './ProfileEngine';
 import { NeuralHeader } from './NeuralHeader';
+import { getSettings } from '../../../services/StorageServices/settings';
 import { 
     VisualState, 
     PsycheStability, 
@@ -19,19 +20,31 @@ interface NeuroSenseProps {
     messages: Message[];
     outfits?: OutfitItem[];
     virtualTime: number;
+    profile: NeuralProfile;
     isMobile?: boolean;
     onClose?: () => void;
     onUpdateCharacter?: (updatedChar: Character) => void;
+    forceDesktop?: boolean; // New Prop for forcing visibility
 }
 
 export const NeuroSense: React.FC<NeuroSenseProps> = ({ 
-    activeChar, messages, outfits = [], virtualTime, isMobile, onClose, onUpdateCharacter 
+    activeChar, messages, outfits = [], virtualTime, profile, isMobile, onClose, onUpdateCharacter, forceDesktop = false
 }) => {
     
-    // Initialize Realtime Engine
-    const profile = useProfileEngine(activeChar, messages, outfits, virtualTime);
+    // Initialize Realtime Engine (Engine is now lifted up to ChatInterface)
     const [showMemoryModal, setShowMemoryModal] = useState(false);
     const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+    const [disableEffects, setDisableEffects] = useState(false);
+    
+    useEffect(() => {
+        const checkSettings = () => {
+            const s = getSettings();
+            setDisableEffects(s.disableNeuroAnimations || false);
+        };
+        checkSettings();
+        window.addEventListener('storage', checkSettings);
+        return () => window.removeEventListener('storage', checkSettings);
+    }, []);
 
     const handleSaveMemory = (memoryData: { title: string; description: string; contextIds: string[] }) => {
         if (!onUpdateCharacter) return;
@@ -80,24 +93,27 @@ export const NeuroSense: React.FC<NeuroSenseProps> = ({
     return (
         <>
             <div className={`
-                flex-col font-sans overflow-hidden transition-all duration-500 ease-in-out
+                flex-col font-sans overflow-hidden transition-all duration-500 ease-in-out gpu-accelerated
                 ${isMobile 
-                    ? 'flex fixed inset-0 z-[60] w-full h-full bg-[#050505]/95 backdrop-blur-xl animate-in slide-in-from-left duration-500' 
-                    : 'hidden lg:flex w-80 border-r border-white/5 bg-[#050505] z-10 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)] h-full'
+                    ? `flex fixed inset-0 z-[60] w-full h-full bg-[#050505]/95 backdrop-blur-xl ${disableEffects ? '' : 'animate-in slide-in-from-left duration-500'}` 
+                    : `${forceDesktop ? 'flex' : 'hidden lg:flex'} w-80 border-r border-white/5 bg-[#050505] z-10 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)] h-full`
                 }
             `}>
                 
                 {/* --- TECH BACKGROUND LAYERS --- */}
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none mix-blend-overlay"></div>
+                {!disableEffects && (
+                    <>
+                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none mix-blend-overlay"></div>
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808005_1px,transparent_1px),linear-gradient(to_bottom,#80808005_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+                    </>
+                )}
                 
                 <div 
-                    className="absolute top-[-10%] left-0 right-0 h-[500px] opacity-15 pointer-events-none transition-colors duration-[2000ms]"
+                    className={`absolute top-[-10%] left-0 right-0 h-[500px] opacity-15 pointer-events-none ${disableEffects ? '' : 'transition-colors duration-[2000ms]'}`}
                     style={{ 
                         background: `radial-gradient(circle at 50% 0%, ${profile.psyche.stability < 30 ? '#ef4444' : profile.psyche.stability < 60 ? '#eab308' : '#8b5cf6'}, transparent 70%)` 
                     }}
                 />
-
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808005_1px,transparent_1px),linear-gradient(to_bottom,#80808005_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
 
                 {/* Mobile Header / Close */}
                 {isMobile && (
